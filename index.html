@@ -3,128 +3,173 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Gemini Toán OCR - Cloud Sync & Tự Xuất DOCX</title>
+  <title>Gemini Toán OCR Pro - Sạch Rác & Chuẩn Equation DOCX</title>
   
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   
-  <!-- BỘ THƯ VIỆN XUẤT WORD & FILE SAVER -->
-  <script src="https://cdn.jsdelivr.net/npm/html-docx-js@0.3.1/dist/html-docx.js"></script>
+  <!-- JSZip: tự dựng file .docx thật (Word Equation / OMML) & FileSaver -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
   
-  <!-- PDF.js: Đọc & bóc tách từng trang PDF -->
+  <!-- PDF.js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script>
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   </script>
 
-  <!-- FIREBASE JS SDK (v9 compat) -->
+  <!-- FIREBASE JS SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
   <style>
     .console-box {
-      font-family: 'Consolas', 'Courier New', monospace;
+      font-family: 'Consolas', 'Fira Code', monospace;
       white-space: pre-wrap;
       word-break: break-word;
     }
+    .console-box::-webkit-scrollbar { width: 6px; }
+    .console-box::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    .drag-active { border-color: #3b82f6 !important; background-color: rgba(30, 58, 138, 0.25) !important; }
   </style>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col p-4 md:p-6 font-sans">
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col p-3 md:p-6 font-sans antialiased">
 
   <div class="max-w-5xl w-full mx-auto flex-1 flex flex-col gap-4">
     
     <!-- HEADER -->
-    <header class="bg-slate-800 border border-slate-700 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3 shadow-lg">
-      <div class="flex items-center gap-3">
-        <div class="bg-blue-600 text-white p-2 rounded-lg font-bold text-xl">∑</div>
+    <header class="bg-slate-900 border border-slate-800 rounded-2xl p-4 md:p-5 flex flex-wrap items-center justify-between gap-4 shadow-xl">
+      <div class="flex items-center gap-3.5">
+        <div class="h-11 w-11 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-500 to-cyan-400 flex items-center justify-center text-white font-black text-2xl shadow-lg shadow-blue-500/20">
+          ∑
+        </div>
         <div>
-          <h1 class="font-bold text-lg text-white">Gemini Toán OCR & DOCX Online</h1>
-          <p class="text-xs text-slate-400">Đồng bộ Firebase Cloud, Tách trang PDF, LaTeX $...$, Bảng & Hình vẽ</p>
+          <div class="flex items-center gap-2">
+            <h1 class="font-extrabold text-lg md:text-xl text-white">Gemini Toán OCR Pro</h1>
+            <span class="px-2 py-0.5 text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full">Clean Edition</span>
+          </div>
+          <p class="text-xs text-slate-400 mt-0.5">Tự động lọc dòng thừa • Xuất Word Equation & MathType • Tách trang chống lỗi hạn mức</p>
         </div>
       </div>
 
       <div class="flex items-center gap-3">
         <div class="flex flex-col">
-          <label class="text-xs text-slate-400 font-semibold mb-1">Mô hình AI:</label>
-          <select id="selectModel" class="bg-slate-700 border border-slate-600 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500">
+          <label class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Mô hình AI:</label>
+          <select id="selectModel" class="bg-slate-800 border border-slate-700 hover:border-slate-600 rounded-xl px-3 py-1.5 text-xs font-medium text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50">
             <option value="gemini-2.5-flash">gemini-2.5-flash</option>
             <option value="gemini-flash-latest">gemini-flash-latest</option>
             <option value="gemini-3.8-flash">gemini-3.8-flash</option>
           </select>
         </div>
-
-        <button onclick="openKeyModal()" class="mt-4 bg-slate-700 hover:bg-slate-600 border border-slate-600 text-slate-200 px-4 py-1.5 rounded-lg text-sm font-medium transition flex items-center gap-1.5">
-          <span>🔑</span> Quản Lý Keys (<span id="keyCountText" class="text-emerald-400 font-bold">0</span>)
-        </button>
       </div>
     </header>
 
-    <!-- THAO TÁC FILE & DÁN ẢNH -->
-    <section class="bg-slate-800 border border-slate-700 rounded-xl p-5 shadow-lg flex flex-col gap-4">
-      <div class="flex flex-wrap items-center gap-3">
-        <label class="cursor-pointer bg-blue-600 hover:bg-blue-500 text-white font-medium px-4 py-2 rounded-lg text-sm transition flex items-center gap-2">
-          <span>📁</span> Chọn PDF hoặc Ảnh
-          <input type="file" id="fileInput" accept=".pdf, image/*" class="hidden" onchange="handleFileSelect(event)" />
+    <!-- 1. KHU VỰC NHẬP API KEYS TRỰC TIẾP -->
+    <section class="bg-slate-900 border border-slate-800 rounded-2xl p-4 md:p-5 shadow-xl flex flex-col gap-3">
+      <div class="flex items-center justify-between">
+        <label class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+          <span>🔑</span> Danh Sách Gemini API Keys:
+          <span id="keyCountText" class="text-emerald-400 font-bold bg-emerald-950/60 border border-emerald-800 px-2 py-0.5 rounded text-[11px]">0 keys</span>
+        </label>
+        <button onclick="saveKeysDirectly()" class="bg-blue-600 hover:bg-blue-500 text-white font-medium px-4 py-1.5 rounded-xl text-xs transition flex items-center gap-1.5 shadow">
+          <span>💾</span> Lưu & Đồng Bộ Cloud
+        </button>
+      </div>
+      <textarea id="directKeyInput" rows="2" placeholder="Dán API Key vào đây (mỗi dòng một key)..." class="bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs font-mono text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 w-full"></textarea>
+    </section>
+
+    <!-- 2. TÙY CHỌN 3 ĐỊNH DẠNG CÔNG THỨC TOÁN -->
+    <section class="bg-slate-900 border border-slate-800 rounded-2xl p-4 md:p-5 shadow-xl flex flex-col gap-3">
+      <label class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+        <span>📐</span> Chọn định dạng công thức trong file Word (.docx):
+      </label>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+        
+        <label class="cursor-pointer border border-slate-800 bg-slate-950/80 hover:bg-slate-800/60 rounded-xl p-3 flex items-start gap-3 transition group has-[:checked]:border-blue-500 has-[:checked]:bg-blue-950/30 has-[:checked]:ring-1 has-[:checked]:ring-blue-500/50">
+          <input type="radio" name="math_format" value="latex" class="mt-1 text-blue-600 focus:ring-0 bg-slate-900 border-slate-700" />
+          <div>
+            <div class="font-bold text-sm text-slate-200">LaTeX ($...$)</div>
+            <p class="text-xs text-slate-400 mt-1">Giữ nguyên $...$, thích hợp cho soạn thảo TeX hoặc dùng VBA/Add-in chuyển sau.</p>
+          </div>
         </label>
 
-        <button onclick="handleClipboardPasteManual()" class="bg-purple-600 hover:bg-purple-500 text-white font-medium px-4 py-2 rounded-lg text-sm transition flex items-center gap-2">
+        <label class="cursor-pointer border border-slate-800 bg-slate-950/80 hover:bg-slate-800/60 rounded-xl p-3 flex items-start gap-3 transition group has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-950/30 has-[:checked]:ring-1 has-[:checked]:ring-indigo-500/50">
+          <input type="radio" name="math_format" value="equation" checked class="mt-1 text-indigo-600 focus:ring-0 bg-slate-900 border-slate-700" />
+          <div>
+            <div class="font-bold text-sm text-slate-200">Word Equation (OMML)</div>
+            <p class="text-xs text-slate-400 mt-1">Công thức Word Equation thật (OMML), mở Word lên là sửa trực tiếp được. Khuyên dùng.</p>
+          </div>
+        </label>
+
+        <label class="cursor-pointer border border-slate-800 bg-slate-950/80 hover:bg-slate-800/60 rounded-xl p-3 flex items-start gap-3 transition group has-[:checked]:border-cyan-500 has-[:checked]:bg-cyan-950/30 has-[:checked]:ring-1 has-[:checked]:ring-cyan-500/50">
+          <input type="radio" name="math_format" value="mathtype" class="mt-1 text-cyan-600 focus:ring-0 bg-slate-900 border-slate-700" />
+          <div>
+            <div class="font-bold text-sm text-slate-200">MathType</div>
+            <p class="text-xs text-slate-400 mt-1">Xuất Equation, rồi trong Word bấm thẻ MathType → Convert Equations để đổi sang MathType.</p>
+          </div>
+        </label>
+
+      </div>
+    </section>
+
+    <!-- 3. KHU VỰC TẢI LÊN FILE / KÉO THẢ / DÁN ẢNH -->
+    <section class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col gap-4">
+      
+      <div id="dropZone" onclick="triggerFileInput()" class="border-2 border-dashed border-slate-700 hover:border-blue-500 bg-slate-950/60 hover:bg-slate-900/50 rounded-2xl p-5 text-center cursor-pointer transition flex flex-col items-center justify-center gap-2 group">
+        <input type="file" id="hiddenFileInput" accept=".pdf, image/*" class="hidden" onchange="handleFileSelect(event)" />
+        <div class="h-10 w-10 rounded-full bg-slate-800 group-hover:bg-blue-600/20 text-slate-300 group-hover:text-blue-400 flex items-center justify-center text-lg transition">
+          📂
+        </div>
+        <p class="text-xs font-semibold text-slate-200">Kéo thả file PDF hoặc Ảnh đề toán vào đây</p>
+        <p class="text-[11px] text-slate-500">Hoặc click để chọn tệp từ máy</p>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-3">
+        <button onclick="triggerFileInput()" class="bg-blue-600 hover:bg-blue-500 text-white font-medium px-4 py-2 rounded-xl text-xs transition flex items-center gap-2 shadow">
+          <span>📁</span> Chọn File
+        </button>
+
+        <button onclick="handleClipboardPasteManual()" class="bg-purple-600 hover:bg-purple-500 text-white font-medium px-4 py-2 rounded-xl text-xs transition flex items-center gap-2 shadow">
           <span>📋</span> Dán Ảnh (Ctrl+V)
         </button>
 
-        <div id="fileInfoBadge" class="flex-1 truncate text-sm text-slate-400 italic px-2">
-          Chưa chọn file nào (Có thể nhấn Ctrl+V trực tiếp để dán ảnh)
+        <div id="fileInfoBadge" class="flex-1 min-w-[200px] truncate text-xs text-slate-400 italic px-2">
+          Chưa chọn file (Nhấn Ctrl+V để dán ảnh bất cứ lúc nào)
         </div>
 
-        <button id="btnRun" onclick="startBatchOCR()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-2.5 rounded-lg text-sm transition shadow-md flex items-center gap-2">
+        <button id="btnRun" onclick="startBatchOCR()" class="bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold px-6 py-2.5 rounded-xl text-sm transition shadow-lg shadow-emerald-500/20 flex items-center gap-2 active:scale-95">
           <span>🚀</span> Bắt Đầu OCR & Tải DOCX
         </button>
       </div>
 
-      <!-- Preview ảnh -->
-      <div id="previewContainer" class="hidden border border-slate-700 rounded-lg p-3 bg-slate-900/50 flex items-center gap-4">
-        <img id="imagePreview" class="max-h-24 max-w-xs object-contain rounded border border-slate-700" src="" alt="Preview" />
+      <!-- Preview ảnh/PDF -->
+      <div id="previewContainer" class="hidden border border-slate-800 rounded-xl p-3 bg-slate-950/80 flex items-center gap-4">
+        <img id="imagePreview" class="max-h-20 max-w-xs object-contain rounded-lg border border-slate-800 shadow" src="" alt="Preview" />
         <div class="text-xs text-slate-400 space-y-1">
           <p id="previewName" class="font-medium text-slate-200 truncate"></p>
           <p id="previewPages" class="text-emerald-400 font-semibold"></p>
-          <button onclick="clearSelectedFile()" class="text-red-400 hover:text-red-300 font-medium">✕ Hủy chọn</button>
+          <button onclick="clearSelectedFile()" class="text-rose-400 hover:text-rose-300 font-medium">✕ Hủy chọn file này</button>
         </div>
       </div>
     </section>
 
-    <!-- CONSOLE LOG -->
-    <section class="bg-slate-800 border border-slate-700 rounded-xl p-4 shadow-lg flex-1 flex flex-col min-h-[350px]">
-      <div class="flex items-center justify-between pb-2 border-b border-slate-700 mb-2">
-        <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Tiến trình bóc tách từng trang & xuất file</span>
-        <button onclick="clearLog()" class="text-xs text-slate-400 hover:text-slate-200">Xóa nhật ký</button>
+    <!-- 4. NHẬT KÝ CONSOLE -->
+    <section class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl flex-1 flex flex-col min-h-[220px]">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-800 mb-2">
+        <div class="flex items-center gap-2">
+          <span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Tiến trình xử lý</span>
+        </div>
+        <button onclick="clearLog()" class="text-xs text-slate-400 hover:text-slate-200 transition">Xóa log</button>
       </div>
-      <div id="consoleLog" class="console-box flex-1 overflow-y-auto text-xs text-emerald-400/90 leading-relaxed space-y-1 bg-slate-950 p-3 rounded-lg border border-slate-900">
-        <div>[Hệ thống] Trình duyệt sẵn sàng. Đang kết nối Firebase Cloud...</div>
+      <div id="consoleLog" class="console-box flex-1 overflow-y-auto text-xs text-emerald-400/90 leading-relaxed space-y-1 bg-slate-950 p-3 rounded-xl border border-slate-900">
+        <div>[Hệ thống] Trình duyệt sẵn sàng. Vui lòng nạp file để bắt đầu.</div>
       </div>
     </section>
   </div>
 
-  <!-- MODAL QUẢN LÝ API KEYS -->
-  <div id="keyModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-lg p-6 shadow-2xl flex flex-col gap-4">
-      <div class="flex items-center justify-between">
-        <h3 class="font-bold text-lg text-white">Quản Lý Danh Sách Gemini API Keys</h3>
-        <button onclick="closeKeyModal()" class="text-slate-400 hover:text-slate-200 text-lg">✕</button>
-      </div>
-      <p class="text-xs text-slate-400">Nhập danh sách API Key của bạn (mỗi dòng một key). Dữ liệu sẽ tự động đồng bộ lên Firebase Database để dùng trên mọi thiết bị.</p>
-      
-      <textarea id="modalKeyInput" rows="7" placeholder="AIzaSy...\nAIzaSy..." class="bg-slate-900 border border-slate-700 rounded-lg p-3 text-xs font-mono text-slate-200 focus:outline-none focus:border-blue-500 w-full"></textarea>
-
-      <div class="flex justify-end gap-3">
-        <button onclick="closeKeyModal()" class="px-4 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-700">Hủy</button>
-        <button onclick="saveKeysFromModal()" class="bg-blue-600 hover:bg-blue-500 text-white font-medium px-5 py-2 rounded-lg text-sm transition">Lưu & Đồng Bộ Cloud</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- JAVASCRIPT LOGIC -->
   <script>
-    // --- 1. CẤU HÌNH VÀ KHỞI TẠO FIREBASE ---
+    // --- 1. FIREBASE CONFIG ---
     const firebaseConfig = {
       apiKey: "AIzaSyDq2DxzfurfZpDQq6d49QuQVTbJJpdJAKI",
       authDomain: "doanvanlam-95238.firebaseapp.com",
@@ -140,35 +185,22 @@
     try {
       firebase.initializeApp(firebaseConfig);
       db = firebase.database();
-    } catch (e) {
-      console.error("Firebase init error:", e);
-    }
+    } catch (e) {}
 
-    // --- 2. SYSTEM INSTRUCTIONS CHUẨN ---
+    // --- 2. SYSTEM INSTRUCTIONS LOẠI BỎ MỌI LỜI CHÀO / GIẢI THÍCH ---
     const SYSTEM_PROMPT = `Bạn là hệ thống OCR chuyên xử lý tài liệu Toán học và tài liệu giáo dục.
-Nhiệm vụ: Đọc TOÀN BỘ nội dung của trang tài liệu này và xuất kết quả chuẩn xác nhất để đưa vào Microsoft Word (.docx).
+Nhiệm vụ: Đọc TOÀN BỘ nội dung của trang tài liệu này và xuất kết quả chính xác để đưa vào file Word.
 
-1. YÊU CẦU BẮT BUỘC:
-- OCR toàn bộ trang, không bỏ sót câu hỏi nào.
-- Giữ nguyên cấu trúc: Câu 1., A., B., C., D. hoặc Đúng/Sai a), b), c), d).
-- Không tự ý tóm tắt, không giải thích ngoài lề.
-
-2. CÔNG THỨC TOÁN HỌC (QUAN TRỌNG NHẤT):
-- Mọi biểu thức Toán học PHẢI nhận dạng thành LaTeX bọc trong dấu $.
-- Ví dụ: $x^2+2x+1=0$, $\\frac{a+b}{c}$, $\\sqrt{x^2+1}$, $\\vec{u}$, $\\widehat{ABC}$.
-- Tuyệt đối không dùng Unicode thay cho công thức (ví dụ KHÔNG viết x², phải viết $x^2$).
-
-3. BẢNG BIỂU:
-- Xuất dạng bảng Markdown thật:
+QUY TẮC CỰC KỲ QUAN TRỌNG:
+1. KHÔNG viết bất kỳ lời chào, lời giải thích, phần mở đầu hay kết thúc nào (ví dụ: "Dưới đây là...", "Đây là kết quả...").
+2. KHÔNG bọc toàn bộ kết quả trong khối code block markdown (\`\`\`markdown hoặc \`\`\`).
+3. Bắt đầu ngay lập tức từ dòng chữ đầu tiên của tài liệu.
+4. Mọi công thức Toán PHẢI được nhận dạng thành LaTeX bọc trong dấu $. Ví dụ: $x^2+2x+1=0$, $\\frac{a+b}{c}$, $\\sqrt{x^2+1}$.
+5. Bảng biểu xuất dạng bảng Markdown:
 | Cột 1 | Cột 2 |
 |---|---|
-| Ô 1 | Ô 2 |
-
-4. HÌNH VẼ, ĐỒ THỊ, HÌNH MINH HỌA:
-- Nếu trên trang có hình học, đồ thị hàm số: Hãy định vị tọa độ tương đối từ 0 đến 1000 theo chuẩn:
-[IMAGE: ymin, xmin, ymax, xmax]
-(Ví dụ: [IMAGE: 200, 150, 500, 850])
-- Đặt thẻ [IMAGE: ...] vào đúng vị trí dòng văn bản tương ứng trên trang.`;
+| Dữ liệu 1 | Dữ liệu 2 |
+6. Nếu có hình vẽ hình học hoặc đồ thị, đánh dấu tọa độ: [IMAGE: ymin, xmin, ymax, xmax]`;
 
     let apiKeys = [];
     let currentKeyIdx = 0;
@@ -180,6 +212,7 @@ Nhiệm vụ: Đọc TOÀN BỘ nội dung của trang tài liệu này và xu�
     window.addEventListener('DOMContentLoaded', () => {
       loadKeysDual();
       setupGlobalPaste();
+      setupDragAndDrop();
     });
 
     function log(msg) {
@@ -194,66 +227,60 @@ Nhiệm vụ: Đọc TOÀN BỘ nội dung của trang tài liệu này và xu�
       document.getElementById('consoleLog').innerHTML = '';
     }
 
-    // --- 3. ĐỒNG BỘ KEYS: LOCALSTORAGE + FIREBASE ---
     function loadKeysDual() {
-      // Đọc trước từ LocalStorage
       const local = localStorage.getItem('gemini_ocr_keys');
       if (local) {
-        apiKeys = JSON.parse(local);
-        document.getElementById('keyCountText').textContent = apiKeys.length;
-        if (apiKeys.length > 0) fetchOnlineModels();
+        try {
+          apiKeys = JSON.parse(local);
+          updateKeyUI();
+          if (apiKeys.length > 0) fetchOnlineModels();
+        } catch (e) {}
       }
 
-      // Đọc và đồng bộ thời gian thực từ Firebase Database
       if (db) {
         db.ref('ocr_config/api_keys').once('value', (snapshot) => {
           const val = snapshot.val();
           if (val && Array.isArray(val) && val.length > 0) {
             apiKeys = val;
             localStorage.setItem('gemini_ocr_keys', JSON.stringify(apiKeys));
-            document.getElementById('keyCountText').textContent = apiKeys.length;
+            updateKeyUI();
             log(`☁️ Đã đồng bộ ${apiKeys.length} API Keys từ Firebase Cloud.`);
             fetchOnlineModels();
-          } else if (apiKeys.length > 0) {
-            // Đẩy lên Firebase nếu trên mây chưa có
-            db.ref('ocr_config/api_keys').set(apiKeys);
           }
-        }).catch((err) => {
-          log(`⚠️ Không thể kết nối Firebase: ${err.message}`);
         });
       }
     }
 
-    function openKeyModal() {
-      document.getElementById('modalKeyInput').value = apiKeys.join('\n');
-      document.getElementById('keyModal').classList.remove('hidden');
+    function updateKeyUI() {
+      document.getElementById('keyCountText').textContent = `${apiKeys.length} keys`;
+      document.getElementById('directKeyInput').value = apiKeys.join('\n');
     }
 
-    function closeKeyModal() {
-      document.getElementById('keyModal').classList.add('hidden');
-    }
-
-    function saveKeysFromModal() {
-      const raw = document.getElementById('modalKeyInput').value.trim();
+    function saveKeysDirectly() {
+      const raw = document.getElementById('directKeyInput').value.trim();
       apiKeys = raw.split(/[\n,]+/).map(k => k.trim()).filter(k => k.length > 0);
       currentKeyIdx = 0;
-      
-      // Lưu local
       localStorage.setItem('gemini_ocr_keys', JSON.stringify(apiKeys));
-      document.getElementById('keyCountText').textContent = apiKeys.length;
+      document.getElementById('keyCountText').textContent = `${apiKeys.length} keys`;
 
-      // Lưu lên Firebase
       if (db) {
         db.ref('ocr_config/api_keys').set(apiKeys)
-          .then(() => log(`☁️ Đã lưu và đồng bộ ${apiKeys.length} API Keys lên Firebase Database.`))
+          .then(() => log(`☁️ Đã lưu ${apiKeys.length} API Keys lên Firebase.`))
           .catch((e) => log(`⚠️ Lỗi lưu Firebase: ${e.message}`));
+      } else {
+        log(`Đã lưu ${apiKeys.length} API Keys vào trình duyệt.`);
       }
-
-      closeKeyModal();
       fetchOnlineModels();
     }
 
     function getActiveKey() {
+      if (apiKeys.length === 0) {
+        const raw = document.getElementById('directKeyInput').value.trim();
+        if (raw) {
+          apiKeys = raw.split(/[\n,]+/).map(k => k.trim()).filter(k => k.length > 0);
+          updateKeyUI();
+        }
+      }
       if (apiKeys.length === 0) return null;
       return apiKeys[currentKeyIdx];
     }
@@ -292,7 +319,22 @@ Nhiệm vụ: Đọc TOÀN BỘ nội dung của trang tài liệu này và xu�
       } catch (e) {}
     }
 
-    // --- 4. CLIPBOARD & FILE SELECT ---
+    function triggerFileInput() { document.getElementById('hiddenFileInput').click(); }
+
+    function setupDragAndDrop() {
+      const dropZone = document.getElementById('dropZone');
+      ['dragenter', 'dragover'].forEach(name => {
+        dropZone.addEventListener(name, (e) => { e.preventDefault(); dropZone.classList.add('drag-active'); }, false);
+      });
+      ['dragleave', 'drop'].forEach(name => {
+        dropZone.addEventListener(name, (e) => { e.preventDefault(); dropZone.classList.remove('drag-active'); }, false);
+      });
+      dropZone.addEventListener('drop', (e) => {
+        const files = e.dataTransfer.files;
+        if (files && files.length > 0) handleFileObject(files[0]);
+      }, false);
+    }
+
     function setupGlobalPaste() {
       window.addEventListener('paste', async (e) => {
         if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
@@ -300,7 +342,7 @@ Nhiệm vụ: Đọc TOÀN BỘ nội dung của trang tài liệu này và xu�
         for (let item of items) {
           if (item.type.includes('image')) {
             const blob = item.getAsFile();
-            processImageFile(blob, 'clipboard_image.png');
+            processImageFile(blob, 'clipboard_math_image.png');
             log('Đã dán ảnh từ Clipboard thành công (Ctrl+V)!');
             break;
           }
@@ -315,7 +357,7 @@ Nhiệm vụ: Đọc TOÀN BỘ nội dung của trang tài liệu này và xu�
           for (let type of item.types) {
             if (type.startsWith('image/')) {
               const blob = await item.getType(type);
-              processImageFile(blob, 'clipboard_image.png');
+              processImageFile(blob, 'clipboard_math_image.png');
               log('Đã nạp ảnh từ Clipboard.');
               return;
             }
@@ -323,14 +365,16 @@ Nhiệm vụ: Đọc TOÀN BỘ nội dung của trang tài liệu này và xu�
         }
         alert('Clipboard không chứa ảnh!');
       } catch (e) {
-        alert('Hãy nhấn tổ hợp phím Ctrl + V trực tiếp trên bàn phím.');
+        alert('Vui lòng nhấn tổ hợp phím Ctrl + V trực tiếp trên bàn phím.');
       }
     }
 
-    async function handleFileSelect(e) {
+    function handleFileSelect(e) {
       const file = e.target.files[0];
-      if (!file) return;
+      if (file) handleFileObject(file);
+    }
 
+    async function handleFileObject(file) {
       if (file.type.includes('pdf') || file.name.toLowerCase().endsWith('.pdf')) {
         isPdfFile = true;
         selectedFileBlob = file;
@@ -338,12 +382,12 @@ Nhiệm vụ: Đọc TOÀN BỘ nội dung của trang tài liệu này và xu�
         pdfDocGlobal = await pdfjsLib.getDocument(new Uint8Array(buffer)).promise;
 
         document.getElementById('fileInfoBadge').textContent = `📄 Đã chọn PDF: ${file.name}`;
-        document.getElementById('fileInfoBadge').className = 'flex-1 truncate text-sm text-emerald-400 font-medium px-2';
+        document.getElementById('fileInfoBadge').className = 'flex-1 truncate text-xs text-emerald-400 font-medium px-2';
         document.getElementById('previewContainer').classList.remove('hidden');
         document.getElementById('imagePreview').classList.add('hidden');
         document.getElementById('previewName').textContent = file.name;
         document.getElementById('previewPages').textContent = `Số trang: ${pdfDocGlobal.numPages} trang`;
-        log(`Đã nạp file PDF (${pdfDocGlobal.numPages} trang). Thuật toán sẽ bóc tách từng trang.`);
+        log(`Đã nạp file PDF (${pdfDocGlobal.numPages} trang).`);
       } else {
         processImageFile(file, file.name);
       }
@@ -358,7 +402,7 @@ Nhiệm vụ: Đọc TOÀN BỘ nội dung của trang tài liệu này và xu�
       reader.onload = (e) => {
         imageBase64Global = e.target.result.split(',')[1];
         document.getElementById('fileInfoBadge').textContent = `🖼️ Đã chọn Ảnh: ${name}`;
-        document.getElementById('fileInfoBadge').className = 'flex-1 truncate text-sm text-emerald-400 font-medium px-2';
+        document.getElementById('fileInfoBadge').className = 'flex-1 truncate text-xs text-emerald-400 font-medium px-2';
         
         const previewContainer = document.getElementById('previewContainer');
         const imgEl = document.getElementById('imagePreview');
@@ -375,20 +419,57 @@ Nhiệm vụ: Đọc TOÀN BỘ nội dung của trang tài liệu này và xu�
       selectedFileBlob = null;
       pdfDocGlobal = null;
       imageBase64Global = null;
-      document.getElementById('fileInput').value = '';
+      document.getElementById('hiddenFileInput').value = '';
       document.getElementById('previewContainer').classList.add('hidden');
-      document.getElementById('fileInfoBadge').textContent = 'Chưa chọn file nào (Có thể nhấn Ctrl+V để dán ảnh)';
-      document.getElementById('fileInfoBadge').className = 'flex-1 truncate text-sm text-slate-400 italic px-2';
+      document.getElementById('fileInfoBadge').textContent = 'Chưa chọn file (Nhấn Ctrl+V để dán ảnh)';
+      document.getElementById('fileInfoBadge').className = 'flex-1 truncate text-xs text-slate-400 italic px-2';
     }
 
-    // --- 5. PIPELINE BÓC TÁCH TỪNG TRANG & GỌI GEMINI ---
+    // --- 3. BỘ LỌC DỌN RÁC (CLEANER) ---
+    function cleanAIText(rawText) {
+      if (!rawText) return "";
+      
+      // Loại bỏ khối bọc ```markdown hoặc ```
+      let cleaned = rawText.replace(/^```[a-zA-Z]*\n?/gm, '').replace(/```$/gm, '');
+      cleaned = cleaned.replace(/\\\[([\s\S]*?)\\\]/g, (m, a) => '$$' + a + '$$').replace(/\\\(([\s\S]*?)\\\)/g, (m, a) => '$' + a + '$');
+      
+      // Lọc các dòng mở đầu rác của AI
+      const lines = cleaned.split('\n');
+      const filtered = [];
+      let started = false;
+
+      for (let line of lines) {
+        const trimmed = line.trim();
+        if (!started) {
+          // Bỏ qua các dòng rác thường gặp
+          if (
+            trimmed.startsWith("Dưới đây") ||
+            trimmed.startsWith("Đây là") ||
+            trimmed.startsWith("Dưới đây là") ||
+            trimmed.startsWith("Chắc chắn rồi") ||
+            trimmed.startsWith("Sau đây") ||
+            trimmed.length === 0
+          ) {
+            continue;
+          }
+          started = true;
+        }
+        filtered.push(line);
+      }
+      return filtered.join('\n').trim();
+    }
+
+    // --- 4. BẮT ĐẦU CHẠY BATCH OCR ---
     async function startBatchOCR() {
       if (!selectedFileBlob) {
-        alert('Vui lòng chọn 1 file PDF hoặc dán ảnh vào trước!');
+        alert('Vui lòng chọn file PDF hoặc dán ảnh vào trước!');
         return;
       }
-      if (apiKeys.length === 0) {
-        alert('Vui lòng bấm "Quản Lý Keys" và nhập ít nhất một Gemini API Key.');
+      
+      const activeKey = getActiveKey();
+      if (!activeKey) {
+        alert('Vui lòng nhập ít nhất một Gemini API Key!');
+        document.getElementById('directKeyInput').focus();
         return;
       }
 
@@ -397,15 +478,16 @@ Nhiệm vụ: Đọc TOÀN BỘ nội dung của trang tài liệu này và xu�
       btnRun.classList.add('opacity-50', 'cursor-not-allowed');
 
       const model = document.getElementById('selectModel').value;
+      const selectedMathFormat = document.querySelector('input[name="math_format"]:checked').value;
       const pagesData = [];
 
       try {
         if (isPdfFile && pdfDocGlobal) {
           const totalPages = pdfDocGlobal.numPages;
-          log(`BẮT ĐẦU BÓC TÁCH TOÀN BỘ ${totalPages} TRANG PDF...`);
+          log(`BẮT ĐẦU XỬ LÝ TOÀN BỘ ${totalPages} TRANG PDF...`);
 
           for (let p = 1; p <= totalPages; p++) {
-            log(`\n--- Đang render và cắt Trang ${p}/${totalPages} ---`);
+            log(`\n--- Render Trang ${p}/${totalPages} ---`);
             const page = await pdfDocGlobal.getPage(p);
             const viewport = page.getViewport({ scale: 2.0 });
 
@@ -418,14 +500,16 @@ Nhiệm vụ: Đọc TOÀN BỘ nội dung của trang tài liệu này và xu�
             const pageBase64 = canvas.toDataURL('image/png').split(',')[1];
             log(`-> Đang gửi trang ${p} tới Gemini (${model})...`);
 
-            const pageText = await callGeminiSinglePageWithRetry(pageBase64, model);
-            log(`-> Trang ${p} OCR thành công!`);
+            const rawPageText = await callGeminiSinglePageWithRetry(pageBase64, model);
+            const cleanText = cleanAIText(rawPageText);
+            log(`-> Trang ${p} hoàn tất.`);
 
-            pagesData.push({ pageNum: p, canvas: canvas, text: pageText });
+            pagesData.push({ pageNum: p, canvas: canvas, text: cleanText });
           }
         } else {
           log(`Đang gửi ảnh tới Gemini (${model})...`);
-          const pageText = await callGeminiSinglePageWithRetry(imageBase64Global, model);
+          const rawPageText = await callGeminiSinglePageWithRetry(imageBase64Global, model);
+          const cleanText = cleanAIText(rawPageText);
           
           const canvas = await new Promise((res) => {
             const img = new Image();
@@ -439,11 +523,11 @@ Nhiệm vụ: Đọc TOÀN BỘ nội dung của trang tài liệu này và xu�
             img.src = `data:image/png;base64,${imageBase64Global}`;
           });
 
-          pagesData.push({ pageNum: 1, canvas: canvas, text: pageText });
+          pagesData.push({ pageNum: 1, canvas: canvas, text: cleanText });
         }
 
-        log("\n✅ Toàn bộ các trang đã OCR xong. Bắt đầu dựng và ghép file DOCX...");
-        await buildAndDownloadDocxHTML(pagesData);
+        log(`\n✅ Nhận diện xong! Xuất file theo định dạng [${selectedMathFormat.toUpperCase()}]...`);
+        await buildAndDownloadDocxHTML(pagesData, selectedMathFormat);
 
       } catch (err) {
         log(`\n❌ TIẾN TRÌNH DỪNG LẠI: ${err.message}`);
@@ -465,7 +549,7 @@ Nhiệm vụ: Đọc TOÀN BỘ nội dung của trang tài liệu này và xu�
             contents: [{
               parts: [
                 { inline_data: { mime_type: 'image/png', data: base64Data } },
-                { text: "Hãy OCR toàn bộ nội dung của trang tài liệu này theo đúng hướng dẫn." }
+                { text: "OCR toàn bộ trang này theo đúng hướng dẫn. Không thêm bất kỳ lời dẫn nào." }
               ]
             }],
             system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
@@ -495,169 +579,484 @@ Nhiệm vụ: Đọc TOÀN BỘ nội dung của trang tài liệu này và xu�
           attempts++;
         }
       }
-      throw new Error("Tất cả các API Key đều thất bại khi xử lý trang này.");
+      throw new Error("Tất cả các API Key đều thất bại.");
     }
 
-    // --- 6. CROP HÌNH VẼ & DỰNG FILE DOCX ---
-    async function buildAndDownloadDocxHTML(pagesData) {
-      log("Đang tổng hợp dữ liệu thành cấu trúc tài liệu Word...");
+    // --- 5. BỘ CHUYỂN LaTeX -> WORD EQUATION (OMML) & DỰNG DOCX ---
+// ==== DOCX CORE START ====
+// Bộ chuyển LaTeX -> OMML (Word Equation) + dựng file .docx thuần (không cần DOM)
+const MATH_FONT = 'Cambria Math';
+function xmlEsc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
-      let htmlContent = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <style>
-            body {
-              font-family: 'Times New Roman', serif;
-              font-size: 13pt;
-              line-height: 1.3;
-              color: #000;
-            }
-            p { margin: 3pt 0; }
-            .question-title {
-              font-weight: bold;
-              margin-top: 8pt;
-              margin-bottom: 2pt;
-            }
-            table {
-              border-collapse: collapse;
-              width: 100%;
-              margin: 8pt 0;
-            }
-            td, th {
-              border: 1pt solid #000;
-              padding: 4pt 6pt;
-              font-size: 12pt;
-            }
-            .img-container {
-              text-align: center;
-              margin: 8pt 0;
-            }
-            .page-break {
-              page-break-before: always;
-            }
-          </style>
-        </head>
-        <body>
-      `;
+const SYM = {
+  alpha:'α',beta:'β',gamma:'γ',delta:'δ',epsilon:'ε',varepsilon:'ε',zeta:'ζ',eta:'η',theta:'θ',vartheta:'ϑ',iota:'ι',kappa:'κ',lambda:'λ',mu:'μ',nu:'ν',xi:'ξ',pi:'π',varpi:'ϖ',rho:'ρ',varrho:'ϱ',sigma:'σ',varsigma:'ς',tau:'τ',upsilon:'υ',phi:'φ',varphi:'φ',chi:'χ',psi:'ψ',omega:'ω',
+  Gamma:'Γ',Delta:'Δ',Theta:'Θ',Lambda:'Λ',Xi:'Ξ',Pi:'Π',Sigma:'Σ',Upsilon:'Υ',Phi:'Φ',Psi:'Ψ',Omega:'Ω',
+  cdot:'⋅',times:'×',div:'÷',pm:'±',mp:'∓',ast:'∗',star:'⋆',circ:'∘',bullet:'∙',oplus:'⊕',otimes:'⊗',
+  le:'≤',leq:'≤',leqslant:'≤',ge:'≥',geq:'≥',geqslant:'≥',ne:'≠',neq:'≠',approx:'≈',equiv:'≡',sim:'∼',simeq:'≃',cong:'≅',propto:'∝',ll:'≪',gg:'≫',
+  in:'∈',notin:'∉',ni:'∋',subset:'⊂',subseteq:'⊆',supset:'⊃',supseteq:'⊇',nsubseteq:'⊈',cup:'∪',cap:'∩',emptyset:'∅',varnothing:'∅',setminus:'∖',
+  forall:'∀',exists:'∃',nexists:'∄',neg:'¬',lnot:'¬',land:'∧',wedge:'∧',lor:'∨',vee:'∨',
+  to:'→',rightarrow:'→',leftarrow:'←',leftrightarrow:'↔',Rightarrow:'⇒',Leftarrow:'⇐',Leftrightarrow:'⇔',implies:'⟹',iff:'⟺',mapsto:'↦',uparrow:'↑',downarrow:'↓',longrightarrow:'⟶',Longrightarrow:'⟹',longleftrightarrow:'⟷',nearrow:'↗',searrow:'↘',
+  infty:'∞',partial:'∂',nabla:'∇',angle:'∠',measuredangle:'∡',perp:'⊥',parallel:'∥',nparallel:'∦',triangle:'△',square:'□',prime:'′',
+  ldots:'…',dots:'…',cdots:'⋯',vdots:'⋮',ddots:'⋱',hbar:'ℏ',ell:'ℓ',Re:'ℜ',Im:'ℑ',aleph:'ℵ',therefore:'∴',because:'∵',degree:'°',
+  lfloor:'⌊',rfloor:'⌋',lceil:'⌈',rceil:'⌉',langle:'⟨',rangle:'⟩',vert:'|',Vert:'‖',lbrace:'{',rbrace:'}',
+  '{':'{','}':'}','|':'‖','%':'%','$':'$','#':'#','&':'&','_':'_','\\':'\n'
+};
+const SPACES = {',':'\u2009',';':'\u2005',':':'\u2005','!':'',' ':' ',quad:'\u2003',qquad:'\u2003\u2003',enspace:'\u2002',space:' '};
+const BIGOPS = {sum:'∑',prod:'∏',coprod:'∐',int:'∫',iint:'∬',iiint:'∭',oint:'∮',bigcup:'⋃',bigcap:'⋂',bigoplus:'⨁',bigvee:'⋁',bigwedge:'⋀'};
+const FUNCS = new Set(['sin','cos','tan','cot','sec','csc','arcsin','arccos','arctan','sinh','cosh','tanh','coth','log','ln','lg','exp','det','dim','gcd','deg','ker','arg','Pr','hom','mod','bmod']);
+const LIMOPS = new Set(['lim','max','min','sup','inf','limsup','liminf']);
+const ACC = {vec:'\u20D7',overrightarrow:'\u20D7',overleftarrow:'\u20D6',hat:'\u0302',widehat:'\u0302',tilde:'\u0303',widetilde:'\u0303',dot:'\u0307',ddot:'\u0308',check:'\u030C',acute:'\u0301',grave:'\u0300',breve:'\u0306',mathring:'\u030A'};
+const IGNORE = new Set(['displaystyle','textstyle','scriptstyle','scriptscriptstyle','limits','nolimits','hline','cline','hfill','nonumber','notag','centering','relax','strut','mathstrut']);
+const SKIP_ARG = new Set(['hspace','vspace','phantom','hphantom','vphantom','label','tag']);
+const BIGSIZE = new Set(['big','Big','bigg','Bigg','bigl','bigr','Bigl','Bigr','biggl','biggr','Biggl','Biggr']);
+const BREAK_CMDS = new Set(['le','leq','ge','geq','ne','neq','approx','equiv','sim','simeq','to','rightarrow','Rightarrow','Leftarrow','Leftrightarrow','leftrightarrow','implies','iff','in','notin','ni','subset','subseteq','supset','supseteq','cup','cap','pm','mp','quad','qquad','leqslant','geqslant','land','lor']);
+const RAWSTYLE = {text:'nor',textrm:'nor',mbox:'nor',textbf:'nor_b',textit:'nor_i',mathrm:'p',operatorname:'p',mathbf:'b',boldsymbol:'b',bm:'b',mathit:'i',mathbb:'bb',mathcal:'plain',mathsf:'plain',mathtt:'plain',mathfrak:'plain'};
+const BB = {R:'ℝ',N:'ℕ',Z:'ℤ',Q:'ℚ',C:'ℂ',P:'ℙ',H:'ℍ'};
 
-      for (let pIdx = 0; pIdx < pagesData.length; pIdx++) {
-        const page = pagesData[pIdx];
+function readBraced(s, j){ // s[j]==='{'
+  let d=0,i=j;
+  for(;i<s.length;i++){
+    const c=s[i];
+    if(c==='\\'){i++;continue;}
+    if(c==='{')d++;
+    else if(c==='}'){d--; if(d===0){return {text:s.slice(j+1,i),end:i+1};}}
+  }
+  return {text:s.slice(j+1),end:s.length};
+}
 
-        if (pIdx > 0) {
-          htmlContent += `<div class="page-break"></div>`;
-        }
+function tokenizeLatex(s){
+  const toks=[]; let i=0; const n=s.length; const re=/\\([A-Za-z]+)/y;
+  while(i<n){
+    const c=s[i];
+    if(/\s/.test(c)){i++;continue;}
+    if(c==='\\'){
+      re.lastIndex=i; const m=re.exec(s);
+      if(m){
+        const name=m[1]; i+=m[0].length;
+        let j=i; while(j<n&&/\s/.test(s[j]))j++;
+        if((name==='begin'||name==='end')&&s[j]==='{'){const g=readBraced(s,j); toks.push({k:name,v:g.text.trim()}); i=g.end; continue;}
+        if(RAWSTYLE[name]&&s[j]==='{'){const g=readBraced(s,j); toks.push({k:'text',v:g.text,style:RAWSTYLE[name]}); i=g.end; continue;}
+        toks.push({k:'cmd',v:name});
+      } else { if(i+1<n) toks.push({k:'cmd',v:s[i+1]}); i+=2; }
+      continue;
+    }
+    if('{}^_&'.includes(c)){toks.push({k:'sym',v:c});i++;continue;}
+    toks.push({k:'ch',v:c}); i++;
+  }
+  return toks;
+}
 
-        const lines = page.text.split('\n');
-        let tableBuffer = [];
+function runXml(t, sty){
+  let rpr='', font=MATH_FONT, extra='';
+  if(sty==='nor'||sty==='nor_b'||sty==='nor_i'){
+    rpr='<m:rPr><m:nor/></m:rPr>'; font='Times New Roman';
+    if(sty==='nor_b') extra='<w:b/>'; if(sty==='nor_i') extra='<w:i/>';
+  } else if(sty){ rpr=`<m:rPr><m:sty m:val="${sty}"/></m:rPr>`; }
+  return `<m:r>${rpr}<w:rPr><w:rFonts w:ascii="${font}" w:hAnsi="${font}" w:cs="${font}"/>${extra}</w:rPr><m:t xml:space="preserve">${xmlEsc(t)}</m:t></m:r>`;
+}
+const mkRun=(t,sty,fn)=>({run:1,t,sty:sty||null,fn:!!fn});
+function emit(items){
+  let out='',cur=null;
+  const flush=()=>{ if(cur&&cur.t!=='') out+=runXml(cur.t,cur.sty); cur=null; };
+  for(const it of items){
+    if(it==null) continue;
+    if(typeof it==='string'){flush(); out+=it;}
+    else if(it.run){ if(cur&&cur.sty===it.sty) cur.t+=it.t; else {flush(); cur={t:it.t,sty:it.sty};} }
+  }
+  flush(); return out;
+}
+function rawToText(v){
+  return v.replace(/\\([A-Za-z]+)/g,(m,n)=>SYM[n]||'').replace(/\\([^A-Za-z])/g,(m,c)=>SPACES[c]!==undefined?SPACES[c]:(SYM[c]||c)).replace(/[{}]/g,'');
+}
+function dXml(open,close,parts,sep){
+  return `<m:d><m:dPr><m:begChr m:val="${xmlEsc(open)}"/>${sep?`<m:sepChr m:val="${xmlEsc(sep)}"/>`:''}<m:endChr m:val="${xmlEsc(close)}"/></m:dPr>${parts.map(p=>`<m:e>${p}</m:e>`).join('')}</m:d>`;
+}
 
-        for (let i = 0; i < lines.length; i++) {
-          let line = lines[i].trim();
-
-          // Nhận diện Bảng Markdown
-          if (line.startsWith('|') && line.endsWith('|')) {
-            tableBuffer.push(line);
-            continue;
-          } else {
-            if (tableBuffer.length > 0) {
-              htmlContent += renderMarkdownTableToHTML(tableBuffer);
-              tableBuffer = [];
-            }
-          }
-
-          if (!line) continue;
-
-          // Nhận diện và crop hình vẽ [IMAGE: ymin, xmin, ymax, xmax]
-          const imgMatch = line.match(/\[IMAGE:\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+)\]/);
-          if (imgMatch) {
-            const [_, ymin, xmin, ymax, xmax] = imgMatch.map(Number);
-            log(`-> Đang crop hình vẽ tọa độ [${ymin}, ${xmin}, ${ymax}, ${xmax}] ở Trang ${page.pageNum}...`);
-            const dataUrl = cropCanvasToDataURL(page.canvas, ymin, xmin, ymax, xmax);
-            if (dataUrl) {
-              htmlContent += `<div class="img-container"><img src="${dataUrl}" style="max-width: 400px; height: auto;" /></div>`;
-            }
-            continue;
-          }
-
-          // Tiêu đề câu hỏi & nội dung trắc nghiệm
-          const isHeading = line.startsWith('**Câu') || line.startsWith('Câu ') || line.startsWith('**Bài');
-          const cleanText = escapeHTML(line.replace(/\*\*/g, ''));
-
-          if (isHeading) {
-            htmlContent += `<p class="question-title">${cleanText}</p>`;
-          } else {
-            htmlContent += `<p>${cleanText}</p>`;
-          }
-        }
-
-        if (tableBuffer.length > 0) {
-          htmlContent += renderMarkdownTableToHTML(tableBuffer);
-        }
+function latexToOmmlInner(src){
+  const toks=tokenizeLatex(src); let pos=0;
+  const isClose=x=>x.k==='sym'&&x.v==='}';
+  const isRelBreak=t=>{
+    if(t.k==='ch') return '=<>,;+-'.includes(t.v);
+    if(t.k==='cmd') return BREAK_CMDS.has(t.v);
+    return false;
+  };
+  function parseSeq(stop){
+    const items=[];
+    while(pos<toks.length){
+      const t=toks[pos];
+      if(stop(t)) break;
+      const a=parseAtomScripts(stop);
+      if(a!=null) items.push(a);
+    }
+    return items;
+  }
+  function arg(){
+    if(pos>=toks.length) return '';
+    const t=toks[pos];
+    if(t.k==='sym'&&t.v==='{'){pos++; const it=parseSeq(isClose); pos++; return emit(it);}
+    const a=parseAtom(()=>false);
+    if(a==null) return '';
+    return typeof a==='string'?a:(a.final?a.xml:emit([a]));
+  }
+  function scriptArg(){
+    if(pos>=toks.length) return '';
+    const t=toks[pos];
+    if(t.k==='sym'&&t.v==='{'){pos++; const it=parseSeq(isClose); pos++; return emit(it);}
+    const a=parseAtom(()=>false);
+    if(a==null) return '';
+    return typeof a==='string'?a:(a.final?a.xml:emit([a]));
+  }
+  function tryDegree(){
+    const a=toks[pos],b=toks[pos+1],c=toks[pos+2];
+    if(a&&a.k==='cmd'&&a.v==='circ'){pos++;return true;}
+    if(a&&a.k==='sym'&&a.v==='{'&&b&&b.k==='cmd'&&b.v==='circ'&&c&&c.k==='sym'&&c.v==='}'){pos+=3;return true;}
+    return false;
+  }
+  function readDelim(){
+    const t=toks[pos++]; if(!t) return '';
+    if(t.k==='ch') return t.v==='.'?'':t.v;
+    if(t.k==='cmd'){
+      const m={'{':'{','}':'}','|':'‖',langle:'⟨',rangle:'⟩',lfloor:'⌊',rfloor:'⌋',lceil:'⌈',rceil:'⌉',vert:'|',Vert:'‖',lbrace:'{',rbrace:'}',backslash:'\\',slash:'/',lvert:'|',rvert:'|',lVert:'‖',rVert:'‖'};
+      return m[t.v]||'';
+    }
+    return '';
+  }
+  function parseAtomScripts(stop){
+    const base=parseAtom(stop);
+    if(base==null) return null;
+    if(typeof base==='object'&&base.final) return base.xml;
+    let sub=null,sup=null,primes='';
+    while(pos<toks.length){
+      const t=toks[pos];
+      if(t.k==='sym'&&t.v==='^'){pos++; sup=tryDegree()?runXml('°',null):scriptArg();}
+      else if(t.k==='sym'&&t.v==='_'){pos++; sub=scriptArg();}
+      else if(t.k==='ch'&&t.v==="'"){pos++; primes+='′';}
+      else break;
+    }
+    if(primes) sup=runXml(primes,null)+(sup||'');
+    if(sub===null&&sup===null){
+      if(typeof base==='object'&&base.fn){
+        const nx=toks[pos];
+        if(!(nx&&((nx.k==='ch'&&nx.v==='(')||(nx.k==='cmd'&&nx.v==='left')))) base.t+='\u2009';
       }
-
-      htmlContent += `</body></html>`;
-
-      log("Đang đóng gói thành file .docx...");
-      
-      try {
-        const converted = htmlDocx.asBlob(htmlContent, {
-          orientation: 'portrait',
-          margins: { top: 1080, right: 1080, bottom: 1080, left: 1080 }
-        });
-
-        saveAs(converted, "KetQua_OCR_Toan_HoanChinh.docx");
-        log("🎉 XUẤT FILE HOÀN TẤT! File Word đã tự động tải về máy bạn.");
-      } catch (err) {
-        log(`❌ Lỗi đóng gói DOCX: ${err.message}`);
+      return base;
+    }
+    const bx=typeof base==='string'?base:emit([base]);
+    let res;
+    if(sub!==null&&sup!==null) res=`<m:sSubSup><m:e>${bx}</m:e><m:sub>${sub}</m:sub><m:sup>${sup}</m:sup></m:sSubSup>`;
+    else if(sup!==null) res=`<m:sSup><m:e>${bx}</m:e><m:sup>${sup}</m:sup></m:sSup>`;
+    else res=`<m:sSub><m:e>${bx}</m:e><m:sub>${sub}</m:sub></m:sSub>`;
+    if(typeof base==='object'&&base.fn) res+=runXml('\u2009','nor');
+    return res;
+  }
+  function parseEnv(env){
+    const name=env.replace(/\*$/,'');
+    if((name==='array'||name==='tabular'||name==='subarray')&&toks[pos]&&toks[pos].k==='sym'&&toks[pos].v==='{'){
+      let d=0; do{const t=toks[pos++]; if(t.k==='sym'&&t.v==='{')d++; else if(t.k==='sym'&&t.v==='}')d--;}while(d>0&&pos<toks.length);
+    }
+    const rows=[[]];
+    while(pos<toks.length){
+      const items=parseSeq(x=>x.k==='end'||(x.k==='sym'&&x.v==='&')||(x.k==='cmd'&&x.v==='\\'));
+      rows[rows.length-1].push(emit(items));
+      if(pos>=toks.length) break;
+      const t=toks[pos++];
+      if(t.k==='end') break;
+      if(t.k==='cmd'&&t.v==='\\'){
+        if(toks[pos]&&toks[pos].k==='ch'&&toks[pos].v==='['){ while(pos<toks.length&&!(toks[pos].k==='ch'&&toks[pos].v===']'))pos++; pos++; }
+        rows.push([]);
       }
     }
+    while(rows.length>1&&rows[rows.length-1].every(c=>c==='')) rows.pop();
+    const cols=Math.max(1,...rows.map(r=>r.length));
+    rows.forEach(r=>{while(r.length<cols)r.push('');});
+    const mat=()=>`<m:m>${rows.map(r=>`<m:mr>${r.map(c=>`<m:e>${c}</m:e>`).join('')}</m:mr>`).join('')}</m:m>`;
+    const D={pmatrix:['(',')'],bmatrix:['[',']'],Bmatrix:['{','}'],vmatrix:['|','|'],Vmatrix:['‖','‖']};
+    if(D[name]) return dXml(D[name][0],D[name][1],[mat()]);
+    if(name==='matrix'||name==='array'||name==='tabular'||name==='smallmatrix'||name==='subarray') return mat();
+    if(name==='cases'||name==='dcases'||name==='rcases'){
+      const sep=runXml('\u2003\u2003','nor');
+      const eq=`<m:eqArr>${rows.map(r=>`<m:e>${r.join(sep)}</m:e>`).join('')}</m:eqArr>`;
+      return name==='rcases'?dXml('','}',[eq]):dXml('{','',[eq]);
+    }
+    if(['aligned','align','alignat','split','gather','gathered','eqnarray','multline','flalign'].includes(name)){
+      const amp=runXml('&',null);
+      return `<m:eqArr>${rows.map(r=>`<m:e>${r.join(amp)}</m:e>`).join('')}</m:eqArr>`;
+    }
+    return rows.map(r=>r.join('')).join('');
+  }
 
-    function cropCanvasToDataURL(sourceCanvas, ymin, xmin, ymax, xmax) {
+  function parseAtom(stop){
+    const t=toks[pos++];
+    if(t.k==='sym'){
+      if(t.v==='{'){const it=parseSeq(isClose); pos++; return emit(it);}
+      if(t.v==='^'||t.v==='_'){pos--; return mkRun('',null);}
+      return null;
+    }
+    if(t.k==='ch'){
+      if(t.v==='-') return mkRun('−',null);
+      if(t.v==="'") return mkRun('′',null);
+      if(t.v==='~') return mkRun(' ','nor');
+      return mkRun(t.v,null);
+    }
+    if(t.k==='text'){
+      const st=t.style; let s=rawToText(t.v);
+      if(st==='bb') s=s.replace(/[A-Z]/g,ch=>BB[ch]||ch);
+      if(st==='plain'||st==='bb') return mkRun(s,null);
+      return mkRun(s,st);
+    }
+    if(t.k==='begin') return parseEnv(t.v);
+    if(t.k==='end') return null;
+    const name=t.v;
+    if(BIGOPS[name]){
+      let sub=null,sup=null;
+      while(pos<toks.length){
+        const x=toks[pos];
+        if(x.k==='cmd'&&(x.v==='limits'||x.v==='nolimits')){pos++;continue;}
+        if(x.k==='sym'&&x.v==='_'){pos++;sub=scriptArg();}
+        else if(x.k==='sym'&&x.v==='^'){pos++;sup=scriptArg();}
+        else break;
+      }
+      let depth=0;
+      const bodyStop=x=>{
+        if(stop(x)) return true;
+        if(depth<=0&&isRelBreak(x)) return true;
+        if(x.k==='ch'){ if('(['.includes(x.v)) depth++; else if(')]'.includes(x.v)) depth--; }
+        return false;
+      };
+      const body=emit(parseSeq(bodyStop));
+      const isInt=['int','iint','iiint','oint'].includes(name);
+      const pr=`<m:naryPr><m:chr m:val="${BIGOPS[name]}"/><m:limLoc m:val="${isInt?'subSup':'undOvr'}"/>${sub===null?'<m:subHide m:val="1"/>':''}${sup===null?'<m:supHide m:val="1"/>':''}</m:naryPr>`;
+      return {final:1,xml:`<m:nary>${pr}<m:sub>${sub||''}</m:sub><m:sup>${sup||''}</m:sup><m:e>${body}</m:e></m:nary>`};
+    }
+    if(LIMOPS.has(name)){
+      let p=pos;
+      while(toks[p]&&toks[p].k==='cmd'&&(toks[p].v==='limits'||toks[p].v==='nolimits'))p++;
+      if(toks[p]&&toks[p].k==='sym'&&toks[p].v==='_'){
+        pos=p+1; const lim=scriptArg();
+        return {final:1,xml:`<m:limLow><m:e>${runXml(name,'p')}</m:e><m:lim>${lim}</m:lim></m:limLow>`};
+      }
+      return mkRun(name,'p',true);
+    }
+    if(FUNCS.has(name)) return mkRun(name,'p',true);
+    if(ACC[name]){const a=arg(); return `<m:acc><m:accPr><m:chr m:val="${ACC[name]}"/></m:accPr><m:e>${a}</m:e></m:acc>`;}
+    switch(name){
+      case 'frac': case 'dfrac': case 'tfrac': case 'cfrac': {const a=arg(),b=arg(); return `<m:f><m:num>${a}</m:num><m:den>${b}</m:den></m:f>`;}
+      case 'binom': case 'dbinom': case 'tbinom': {const a=arg(),b=arg(); return dXml('(',')',[`<m:f><m:fPr><m:type m:val="noBar"/></m:fPr><m:num>${a}</m:num><m:den>${b}</m:den></m:f>`]);}
+      case 'sqrt': {
+        let deg=null;
+        if(toks[pos]&&toks[pos].k==='ch'&&toks[pos].v==='['){pos++; const it=parseSeq(x=>x.k==='ch'&&x.v===']'); pos++; deg=emit(it);}
+        const body=arg();
+        return deg!==null?`<m:rad><m:deg>${deg}</m:deg><m:e>${body}</m:e></m:rad>`:`<m:rad><m:radPr><m:degHide m:val="1"/></m:radPr><m:deg/><m:e>${body}</m:e></m:rad>`;
+      }
+      case 'overline': case 'bar': {const a=arg(); return `<m:bar><m:barPr><m:pos m:val="top"/></m:barPr><m:e>${a}</m:e></m:bar>`;}
+      case 'underline': {const a=arg(); return `<m:bar><m:barPr><m:pos m:val="bot"/></m:barPr><m:e>${a}</m:e></m:bar>`;}
+      case 'overbrace': case 'underbrace': {
+        const a=arg(); const top=name==='overbrace';
+        return `<m:groupChr><m:groupChrPr><m:chr m:val="${top?'⏞':'⏟'}"/><m:pos m:val="${top?'top':'bot'}"/><m:vertJc m:val="${top?'bot':'top'}"/></m:groupChrPr><m:e>${a}</m:e></m:groupChr>`;
+      }
+      case 'left': {
+        const open=readDelim(); const parts=[]; const seps=[]; let close='';
+        while(true){
+          const it=parseSeq(x=>x.k==='cmd'&&(x.v==='right'||x.v==='middle'));
+          parts.push(emit(it));
+          if(pos>=toks.length) break;
+          const t2=toks[pos++];
+          if(t2.v==='middle'){seps.push(readDelim());continue;}
+          close=readDelim(); break;
+        }
+        return dXml(open,close,parts,seps[0]);
+      }
+      case 'right': case 'middle': readDelim(); return null;
+      case 'not': return null;
+      case 'xrightarrow': case 'xleftarrow': {arg(); return mkRun(name==='xrightarrow'?'→':'←',null);}
+      default: break;
+    }
+    if(BIGSIZE.has(name)){const d=readDelim(); return d?mkRun(d,null):null;}
+    if(IGNORE.has(name)) return null;
+    if(SKIP_ARG.has(name)){arg(); return null;}
+    if(SPACES[name]!==undefined){ return SPACES[name]===''?null:mkRun(SPACES[name],'nor'); }
+    if(SYM[name]!==undefined){ return SYM[name]==='\n'?null:mkRun(SYM[name],null); }
+    return mkRun(name,'nor');
+  }
+  const items=parseSeq(()=>false);
+  return emit(items);
+}
+
+function texToOmml(latex, display){
+  try{
+    const inner=latexToOmmlInner(latex.trim());
+    if(!inner) return null;
+    return display?`<m:oMathPara><m:oMath>${inner}</m:oMath></m:oMathPara>`:`<m:oMath>${inner}</m:oMath>`;
+  }catch(e){ return null; }
+}
+
+// ---------- Dựng nội dung Word ----------
+function textRun(text,bold){
+  if(text==='') return '';
+  return `<w:r>${bold?'<w:rPr><w:b/></w:rPr>':''}<w:t xml:space="preserve">${xmlEsc(text)}</w:t></w:r>`;
+}
+function boldSplit(s,boldAll){
+  if(!s) return '';
+  const parts=s.split('**'); let b=!!boldAll,out='';
+  parts.forEach((p,i)=>{ if(i>0) b=!b; out+=textRun(p,b); });
+  return out;
+}
+function inlineToXml(text,fmt,boldAll){
+  let out='',last=0,m;
+  const re=/\$\$([\s\S]*?)\$\$|\$([^$]+?)\$/g;
+  while((m=re.exec(text))){
+    out+=boldSplit(text.slice(last,m.index),boldAll);
+    const display=m[1]!==undefined; const latex=display?m[1]:m[2];
+    if(fmt==='latex') out+=textRun(m[0],boldAll);
+    else{
+      const omml=texToOmml(latex,display&&text.trim()===m[0]);
+      out+=omml||textRun(m[0],boldAll);
+    }
+    last=m.index+m[0].length;
+  }
+  out+=boldSplit(text.slice(last),boldAll);
+  return out;
+}
+function para(inner,opts){
+  opts=opts||{};
+  return `<w:p><w:pPr><w:spacing w:before="${opts.before??60}" w:after="${opts.after??60}" w:line="324" w:lineRule="auto"/>${opts.center?'<w:jc w:val="center"/>':(opts.left?'':'<w:jc w:val="both"/>')}</w:pPr>${inner}</w:p>`;
+}
+function splitTableRow(line){
+  const cells=[]; let cur='',inMath=false;
+  const s=line.trim().replace(/^\|/,'').replace(/\|$/,'');
+  for(let i=0;i<s.length;i++){
+    const c=s[i];
+    if(c==='$') inMath=!inMath;
+    if(c==='|'&&!inMath){cells.push(cur.trim());cur='';}
+    else cur+=c;
+  }
+  cells.push(cur.trim());
+  return cells;
+}
+function tableXml(rawLines,fmt){
+  const rows=[];
+  for(const l of rawLines){
+    if(/^\|[\s\-:|]+\|$/.test(l.trim())) continue;
+    rows.push(splitTableRow(l));
+  }
+  if(!rows.length) return '';
+  const cols=Math.max(...rows.map(r=>r.length));
+  const total=9746, cw=Math.floor(total/cols);
+  const b=(n)=>`<w:${n} w:val="single" w:sz="4" w:space="0" w:color="000000"/>`;
+  let x=`<w:tbl><w:tblPr><w:tblW w:w="${cw*cols}" w:type="dxa"/><w:tblBorders>${b('top')}${b('left')}${b('bottom')}${b('right')}${b('insideH')}${b('insideV')}</w:tblBorders><w:tblLayout w:type="fixed"/><w:tblCellMar><w:left w:w="100" w:type="dxa"/><w:right w:w="100" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid>${('<w:gridCol w:w="'+cw+'"/>').repeat(cols)}</w:tblGrid>`;
+  for(const r of rows){
+    x+='<w:tr>';
+    for(let c=0;c<cols;c++){
+      x+=`<w:tc><w:tcPr><w:tcW w:w="${cw}" w:type="dxa"/></w:tcPr>${para(inlineToXml(r[c]||'',fmt,false),{left:true,before:40,after:40})}</w:tc>`;
+    }
+    x+='</w:tr>';
+  }
+  return x+'</w:tbl>'+para('',{before:0,after:0});
+}
+function imageXml(id,wpx,hpx){
+  const maxW=420; let w=wpx,h=hpx;
+  if(w>maxW){h=h*maxW/w;w=maxW;}
+  const cx=Math.max(1,Math.round(w*9525)),cy=Math.max(1,Math.round(h*9525));
+  return `<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${id}" name="Hinh ${id}"/><wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="${id}" name="img${id}.png"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="rIdImg${id}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`;
+}
+
+const NS='xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"';
+const XMLH='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
+
+function normalizeMathDelims(t){
+  return t.replace(/\\\[([\s\S]*?)\\\]/g,(m,a)=>'$$'+a+'$$').replace(/\\\(([\s\S]*?)\\\)/g,(m,a)=>'$'+a+'$');
+}
+
+async function buildDocxBlob(pagesData,fmt,getImage,JSZipLib){
+  const media=[]; let body='';
+  pagesData.forEach((page,pIdx)=>{
+    if(pIdx>0) body+='<w:p><w:r><w:br w:type="page"/></w:r></w:p>';
+    const lines=normalizeMathDelims(page.text).split('\n');
+    let tbl=[];
+    const flushTbl=()=>{ if(tbl.length){body+=tableXml(tbl,fmt);tbl=[];} };
+    for(let i=0;i<lines.length;i++){
+      const line=lines[i].trim();
+      if(line.startsWith('|')&&line.endsWith('|')&&line.length>1){tbl.push(line);continue;}
+      flushTbl();
+      if(!line) continue;
+      const imgRe=/\[IMAGE:\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\]/;
+      const im=line.match(imgRe);
+      let textLine=line;
+      if(im) textLine=line.replace(new RegExp(imgRe.source,'g'),'').trim();
+      if(textLine){
+        const plain=textLine.replace(/^\*\*/,'');
+        let inner;
+        const hm=!textLine.startsWith('**')&&/^((?:Câu|Bài)\s*\d+\s*[.:]?)/i.exec(textLine);
+        if(/^\**PHẦN/i.test(textLine)||/^\**PHẦN/i.test(plain)) inner=inlineToXml(textLine,fmt,true);
+        else if(hm) inner=textRun(hm[1],true)+inlineToXml(textLine.slice(hm[1].length),fmt,false);
+        else inner=inlineToXml(textLine,fmt,false);
+        body+=para(inner,{});
+      }
+      if(im){
+        const [,ymin,xmin,ymax,xmax]=im.map(Number);
+        const img=getImage(page,ymin,xmin,ymax,xmax);
+        if(img){media.push(img.base64); body+=imageXml(media.length,img.w,img.h);}
+      }
+    }
+    flushTbl();
+  });
+  body+=para('',{before:0,after:0});
+  const doc=`${XMLH}<w:document ${NS}><w:body>${body}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1080" w:right="1080" w:bottom="1080" w:left="1080" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr></w:body></w:document>`;
+  const W='http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+  const zip=new JSZipLib();
+  zip.file('[Content_Types].xml',`${XMLH}<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/></Types>`);
+  zip.file('_rels/.rels',`${XMLH}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`);
+  let rels=`<Relationship Id="rIdStyles" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rIdSettings" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings" Target="settings.xml"/>`;
+  media.forEach((b64,i)=>{
+    rels+=`<Relationship Id="rIdImg${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/img${i+1}.png"/>`;
+    zip.file(`word/media/img${i+1}.png`,b64,{base64:true});
+  });
+  zip.file('word/_rels/document.xml.rels',`${XMLH}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${rels}</Relationships>`);
+  zip.file('word/styles.xml',`${XMLH}<w:styles xmlns:w="${W}"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:eastAsia="Times New Roman" w:cs="Times New Roman"/><w:sz w:val="26"/><w:szCs w:val="26"/><w:lang w:val="vi-VN"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style><w:style w:type="table" w:default="1" w:styleId="TableNormal"><w:name w:val="Normal Table"/><w:uiPriority w:val="99"/><w:semiHidden/><w:unhideWhenUsed/><w:tblPr><w:tblInd w:w="0" w:type="dxa"/><w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="108" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="108" w:type="dxa"/></w:tblCellMar></w:tblPr></w:style></w:styles>`);
+  zip.file('word/settings.xml',`${XMLH}<w:settings xmlns:w="${W}" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"><w:zoom w:percent="100"/><w:compat><w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/></w:compat><m:mathPr><m:mathFont m:val="Cambria Math"/><m:brkBin m:val="before"/><m:brkBinSub m:val="--"/><m:smallFrac m:val="0"/><m:dispDef/><m:lMargin m:val="0"/><m:rMargin m:val="0"/><m:defJc m:val="centerGroup"/><m:wrapIndent m:val="1440"/><m:intLim m:val="subSup"/><m:naryLim m:val="undOvr"/></m:mathPr></w:settings>`);
+  zip.file('word/document.xml',doc);
+  return zip.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',compression:'DEFLATE'});
+}
+// ==== DOCX CORE END ====
+
+
+    // --- 6. CROP HÌNH & XUẤT DOCX THẬT (Word Equation / OMML) ---
+    function cropCanvasToImage(sourceCanvas, ymin, xmin, ymax, xmax) {
       try {
-        const cw = (xmax - xmin) * sourceCanvas.width / 1000;
-        const ch = (ymax - ymin) * sourceCanvas.height / 1000;
+        const sx = Math.max(0, xmin * sourceCanvas.width / 1000);
+        const sy = Math.max(0, ymin * sourceCanvas.height / 1000);
+        const cw = Math.max(1, Math.round((xmax - xmin) * sourceCanvas.width / 1000));
+        const ch = Math.max(1, Math.round((ymax - ymin) * sourceCanvas.height / 1000));
         const cropC = document.createElement('canvas');
         cropC.width = cw;
         cropC.height = ch;
-        cropC.getContext('2d').drawImage(
-          sourceCanvas,
-          xmin * sourceCanvas.width / 1000,
-          ymin * sourceCanvas.height / 1000,
-          cw, ch,
-          0, 0, cw, ch
-        );
-        return cropC.toDataURL('image/png');
+        cropC.getContext('2d').drawImage(sourceCanvas, sx, sy, cw, ch, 0, 0, cw, ch);
+        // Ảnh render ở scale 2.0 => chia 2 để kích thước hiển thị trong Word hợp lý
+        return { base64: cropC.toDataURL('image/png').split(',')[1], w: cw / 2, h: ch / 2 };
       } catch (e) {
         return null;
       }
     }
 
-    function renderMarkdownTableToHTML(rawLines) {
-      let html = '<table>';
-      for (let l of rawLines) {
-        if (/^\|[\s\-:|]+\|$/.test(l.trim())) continue;
-        const cells = l.split('|').map(c => c.trim()).filter((_, i, a) => i > 0 && i < a.length - 1);
-        if (cells.length > 0) {
-          html += '<tr>';
-          cells.forEach(c => {
-            html += `<td>${escapeHTML(c)}</td>`;
-          });
-          html += '</tr>';
+    async function buildAndDownloadDocxHTML(pagesData, mathFormat) {
+      log("Đang tổng hợp dữ liệu và tạo Equation Word...");
+      try {
+        const getImage = (page, ymin, xmin, ymax, xmax) => {
+          log(`-> Đang crop hình vẽ [${ymin}, ${xmin}, ${ymax}, ${xmax}] ở Trang ${page.pageNum}...`);
+          return cropCanvasToImage(page.canvas, ymin, xmin, ymax, xmax);
+        };
+        const blob = await buildDocxBlob(pagesData, mathFormat, getImage, JSZip);
+        const fileName = `DeThi_OCR_${mathFormat.toUpperCase()}.docx`;
+        saveAs(blob, fileName);
+        log(`🎉 XUẤT FILE HOÀN TẤT! Đã tải về: ${fileName}`);
+        if (mathFormat === 'mathtype') {
+          log('ℹ️ Mở file trong Word → thẻ MathType → "Convert Equations" để đổi toàn bộ Equation sang đối tượng MathType.');
         }
+      } catch (err) {
+        log(`❌ Lỗi đóng gói DOCX: ${err.message}`);
       }
-      html += '</table>';
-      return html;
     }
 
-    function escapeHTML(str) {
-      return str
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-    }
   </script>
 </body>
 </html>
