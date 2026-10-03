@@ -34,6 +34,7 @@
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col p-3 md:p-6 font-sans antialiased">
+  <div id="toastBox" class="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none max-w-xs"></div>
 
   <div class="max-w-5xl w-full mx-auto flex-1 flex flex-col gap-4">
     
@@ -140,6 +141,18 @@
         <button id="btnRun" onclick="startBatchOCR()" class="bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold px-6 py-2.5 rounded-xl text-sm transition shadow-lg shadow-emerald-500/20 flex items-center gap-2 active:scale-95">
           <span>🚀</span> Bắt Đầu OCR & Tải DOCX
         </button>
+        <button id="btnStop" onclick="stopOCR()" class="hidden bg-rose-600/90 hover:bg-rose-500 text-white font-semibold px-4 py-2.5 rounded-xl text-xs transition shadow flex items-center gap-1.5 active:scale-95">
+          <span>⏹</span> Dừng & xuất phần đã xong
+        </button>
+      </div>
+
+      <!-- Phạm vi trang -->
+      <div id="rangeRow" class="hidden flex flex-wrap items-center gap-2.5 text-xs bg-slate-950/70 border border-slate-800 rounded-xl px-3 py-2">
+        <span class="text-slate-300 font-semibold">📑 Phạm vi trang</span>
+        <label class="flex items-center gap-1.5 text-slate-400">Từ <input id="pageFrom" type="number" min="1" value="1" class="w-16 bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-center text-xs text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50" /></label>
+        <label class="flex items-center gap-1.5 text-slate-400">đến <input id="pageTo" type="number" min="1" value="1" class="w-16 bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-center text-xs text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50" /></label>
+        <span id="rangeTotal" class="text-slate-500"></span>
+        <button onclick="resetRange()" class="ml-auto text-blue-400 hover:text-blue-300 font-medium">Chọn tất cả</button>
       </div>
 
       <!-- Preview ảnh/PDF -->
@@ -153,17 +166,24 @@
       </div>
     </section>
 
-    <!-- 4. NHẬT KÝ CONSOLE -->
-    <section class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl flex-1 flex flex-col min-h-[220px]">
-      <div class="flex items-center justify-between pb-2 border-b border-slate-800 mb-2">
+    <!-- 4. TIẾN TRÌNH -->
+    <section class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col gap-2.5">
+      <div class="flex flex-wrap items-center justify-between gap-2">
         <div class="flex items-center gap-2">
-          <span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
-          <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Tiến trình xử lý</span>
+          <span id="runDot" class="h-2 w-2 rounded-full bg-slate-600"></span>
+          <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Tiến trình</span>
+          <span id="progressText" class="text-[11px] text-slate-500">Chưa chạy</span>
         </div>
-        <button onclick="clearLog()" class="text-xs text-slate-400 hover:text-slate-200 transition">Xóa log</button>
+        <div class="flex items-center gap-1.5 text-[11px]">
+          <span class="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">✓ <b id="chipDone">0</b> xong</span>
+          <span class="px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20">✕ <b id="chipFail">0</b> lỗi</span>
+          <button onclick="clearLog()" class="ml-1 text-slate-500 hover:text-slate-300 transition">Xóa log</button>
+        </div>
       </div>
-      <div id="consoleLog" class="console-box flex-1 overflow-y-auto text-xs text-emerald-400/90 leading-relaxed space-y-1 bg-slate-950 p-3 rounded-xl border border-slate-900">
-        <div>[Hệ thống] Trình duyệt sẵn sàng. Vui lòng nạp file để bắt đầu.</div>
+      <div class="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden"><div id="progressBar" class="h-full w-0 bg-gradient-to-r from-emerald-500 to-cyan-400 transition-all duration-300"></div></div>
+      <div id="resultBanner" class="hidden"></div>
+      <div id="consoleLog" class="max-h-40 min-h-[88px] overflow-y-auto text-[11px] leading-5 bg-slate-950 p-2.5 rounded-xl border border-slate-900 space-y-0.5">
+        <div class="text-slate-500">Sẵn sàng. Hãy nạp file để bắt đầu.</div>
       </div>
     </section>
   </div>
@@ -215,17 +235,88 @@ QUY TẮC CỰC KỲ QUAN TRỌNG:
       setupDragAndDrop();
     });
 
-    function log(msg) {
-      const box = document.getElementById('consoleLog');
-      const item = document.createElement('div');
-      item.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
-      box.appendChild(item);
+    const $ = (id) => document.getElementById(id);
+    let stopRequested = false;
+
+    const LOG_STYLE = {
+      info: ['text-slate-300', 'bg-slate-500'],
+      success: ['text-emerald-400', 'bg-emerald-400'],
+      warn: ['text-amber-400', 'bg-amber-400'],
+      error: ['text-rose-400', 'bg-rose-400']
+    };
+    function log(msg, level) {
+      const raw = String(msg);
+      if (!level) level = /❌|thất bại/i.test(raw) ? 'error' : /⚠️/.test(raw) ? 'warn' : /✅|🎉|hoàn tất|hoàn thành/i.test(raw) ? 'success' : 'info';
+      const text = raw.replace(/^[\s\-]+|[\s\-]+$/g, '').replace(/^(❌|⚠️|✅|🎉|ℹ️|☁️|->)\s*/, '');
+      if (!text) return;
+      const [tc, dc] = LOG_STYLE[level];
+      const row = document.createElement('div');
+      row.className = 'flex items-start gap-2';
+      const t = document.createElement('span');
+      t.className = 'text-slate-600 tabular-nums shrink-0';
+      t.textContent = new Date().toLocaleTimeString('vi-VN', { hour12: false });
+      const d = document.createElement('span');
+      d.className = `mt-[7px] h-1.5 w-1.5 rounded-full shrink-0 ${dc}`;
+      const m = document.createElement('span');
+      m.className = `${tc} break-words min-w-0`;
+      m.textContent = text;
+      row.append(t, d, m);
+      const box = $('consoleLog');
+      box.appendChild(row);
       box.scrollTop = box.scrollHeight;
     }
+    function clearLog() { $('consoleLog').innerHTML = ''; }
 
-    function clearLog() {
-      document.getElementById('consoleLog').innerHTML = '';
+    function toast(msg, type) {
+      type = type || 'warn';
+      const cls = type === 'error' ? 'bg-rose-950/90 border-rose-700/60 text-rose-200'
+        : type === 'success' ? 'bg-emerald-950/90 border-emerald-700/60 text-emerald-200'
+        : 'bg-amber-950/90 border-amber-700/60 text-amber-200';
+      const d = document.createElement('div');
+      d.className = `pointer-events-auto text-xs px-3.5 py-2.5 rounded-xl border shadow-xl transition-opacity duration-300 ${cls}`;
+      d.textContent = msg;
+      $('toastBox').appendChild(d);
+      setTimeout(() => { d.style.opacity = '0'; setTimeout(() => d.remove(), 300); }, 3500);
     }
+
+    function setProgress(done, total, label) {
+      $('progressBar').style.width = `${total ? Math.round(done / total * 100) : 0}%`;
+      $('progressText').textContent = label || `${done}/${total} trang`;
+      $('chipDone').textContent = done;
+    }
+
+    function showBanner(type, text, btnLabel, btnFn) {
+      const cls = type === 'error' ? 'bg-rose-500/10 border-rose-500/30 text-rose-300'
+        : type === 'success' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+        : 'bg-amber-500/10 border-amber-500/30 text-amber-300';
+      const b = $('resultBanner');
+      b.className = `flex flex-wrap items-center gap-2 text-xs rounded-xl border px-3 py-2 ${cls}`;
+      b.innerHTML = '';
+      const sp = document.createElement('span');
+      sp.className = 'flex-1 min-w-[180px]';
+      sp.textContent = text;
+      b.appendChild(sp);
+      if (btnLabel) {
+        const bt = document.createElement('button');
+        bt.className = 'px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 font-semibold transition';
+        bt.textContent = btnLabel;
+        bt.onclick = btnFn;
+        b.appendChild(bt);
+      }
+    }
+
+    function friendlyError(err) {
+      const m = (err && err.message) || String(err), st = err && err.status;
+      if (st === 429 || /quota|rate.?limit|RESOURCE_EXHAUSTED|exhaust/i.test(m)) return 'API hết hạn mức';
+      if (st === 401 || st === 403 || /API key not valid|API_KEY_INVALID|expired/i.test(m)) return 'API key không hợp lệ hoặc bị khóa';
+      if (st === 404) return 'Model không tồn tại';
+      if (st === 503 || /overload|unavailable/i.test(m)) return 'Máy chủ Gemini quá tải';
+      if (/Failed to fetch|NetworkError/i.test(m)) return 'Mất kết nối mạng';
+      return m.length > 70 ? m.slice(0, 70) + '…' : m;
+    }
+
+    function stopOCR() { stopRequested = true; log('Sẽ dừng sau trang hiện tại và xuất phần đã xong…', 'warn'); }
+    function resetRange() { if (pdfDocGlobal) { $('pageFrom').value = 1; $('pageTo').value = pdfDocGlobal.numPages; } }
 
     function loadKeysDual() {
       const local = localStorage.getItem('gemini_ocr_keys');
@@ -288,7 +379,7 @@ QUY TẮC CỰC KỲ QUAN TRỌNG:
     function rotateKey() {
       if (apiKeys.length > 1) {
         currentKeyIdx = (currentKeyIdx + 1) % apiKeys.length;
-        log(`-> Đổi sang API Key thứ #${currentKeyIdx + 1}...`);
+        /* đã log ở nơi gọi */
       }
     }
 
@@ -363,9 +454,9 @@ QUY TẮC CỰC KỲ QUAN TRỌNG:
             }
           }
         }
-        alert('Clipboard không chứa ảnh!');
+        toast('Clipboard không chứa ảnh!');
       } catch (e) {
-        alert('Vui lòng nhấn tổ hợp phím Ctrl + V trực tiếp trên bàn phím.');
+        toast('Vui lòng nhấn tổ hợp phím Ctrl + V trực tiếp trên bàn phím.');
       }
     }
 
@@ -387,7 +478,12 @@ QUY TẮC CỰC KỲ QUAN TRỌNG:
         document.getElementById('imagePreview').classList.add('hidden');
         document.getElementById('previewName').textContent = file.name;
         document.getElementById('previewPages').textContent = `Số trang: ${pdfDocGlobal.numPages} trang`;
-        log(`Đã nạp file PDF (${pdfDocGlobal.numPages} trang).`);
+        const nPg = pdfDocGlobal.numPages;
+        $('rangeRow').classList.remove('hidden');
+        $('pageFrom').max = $('pageTo').max = nPg;
+        $('pageFrom').value = 1; $('pageTo').value = nPg;
+        $('rangeTotal').textContent = `/ tổng ${nPg} trang`;
+        log(`Đã nạp file PDF (${nPg} trang).`);
       } else {
         processImageFile(file, file.name);
       }
@@ -397,6 +493,7 @@ QUY TẮC CỰC KỲ QUAN TRỌNG:
       isPdfFile = false;
       pdfDocGlobal = null;
       selectedFileBlob = blob;
+      $('rangeRow').classList.add('hidden');
 
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -416,6 +513,7 @@ QUY TẮC CỰC KỲ QUAN TRỌNG:
     }
 
     function clearSelectedFile() {
+      $('rangeRow').classList.add('hidden');
       selectedFileBlob = null;
       pdfDocGlobal = null;
       imageBase64Global = null;
@@ -459,85 +557,107 @@ QUY TẮC CỰC KỲ QUAN TRỌNG:
       return filtered.join('\n').trim();
     }
 
-    // --- 4. BẮT ĐẦU CHẠY BATCH OCR ---
+    // --- 4. BẮT ĐẦU CHẠY BATCH OCR (có phạm vi trang, xuất một phần khi lỗi) ---
+    async function renderPdfPage(p) {
+      const page = await pdfDocGlobal.getPage(p);
+      const viewport = page.getViewport({ scale: 2.0 });
+      const canvas = document.createElement('canvas');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+      return canvas;
+    }
+    function imageToCanvas(b64) {
+      return new Promise((res) => {
+        const img = new Image();
+        img.onload = () => {
+          const c = document.createElement('canvas');
+          c.width = img.naturalWidth; c.height = img.naturalHeight;
+          c.getContext('2d').drawImage(img, 0, 0);
+          res(c);
+        };
+        img.src = `data:image/png;base64,${b64}`;
+      });
+    }
+
     async function startBatchOCR() {
-      if (!selectedFileBlob) {
-        alert('Vui lòng chọn file PDF hoặc dán ảnh vào trước!');
-        return;
-      }
-      
-      const activeKey = getActiveKey();
-      if (!activeKey) {
-        alert('Vui lòng nhập ít nhất một Gemini API Key!');
-        document.getElementById('directKeyInput').focus();
-        return;
-      }
+      if (!selectedFileBlob) { toast('Vui lòng chọn file PDF hoặc dán ảnh trước.'); return; }
+      if (!getActiveKey()) { toast('Vui lòng nhập ít nhất một Gemini API Key.'); $('directKeyInput').focus(); return; }
 
-      const btnRun = document.getElementById('btnRun');
-      btnRun.disabled = true;
-      btnRun.classList.add('opacity-50', 'cursor-not-allowed');
-
-      const model = document.getElementById('selectModel').value;
-      const selectedMathFormat = document.querySelector('input[name="math_format"]:checked').value;
+      let from = 1, to = 1;
+      if (isPdfFile && pdfDocGlobal) {
+        const n = pdfDocGlobal.numPages;
+        from = Math.min(Math.max(1, parseInt($('pageFrom').value) || 1), n);
+        to = Math.min(Math.max(1, parseInt($('pageTo').value) || n), n);
+        if (from > to) { toast('"Từ trang" phải nhỏ hơn hoặc bằng "đến trang".'); return; }
+        $('pageFrom').value = from; $('pageTo').value = to;
+      }
+      const total = isPdfFile ? to - from + 1 : 1;
+      const model = $('selectModel').value;
+      const fmt = document.querySelector('input[name="math_format"]:checked').value;
       const pagesData = [];
+      let stoppedAt = null, reason = '';
+
+      const btnRun = $('btnRun');
+      btnRun.disabled = true; btnRun.classList.add('opacity-50', 'cursor-not-allowed');
+      $('btnStop').classList.remove('hidden');
+      $('runDot').className = 'h-2 w-2 rounded-full bg-emerald-400 animate-pulse';
+      $('resultBanner').className = 'hidden';
+      $('chipFail').textContent = '0';
+      stopRequested = false;
+      setProgress(0, total);
+      log(isPdfFile ? `Bắt đầu OCR trang ${from}–${to} (${total} trang) · ${model}` : `Bắt đầu OCR ảnh · ${model}`);
 
       try {
-        if (isPdfFile && pdfDocGlobal) {
-          const totalPages = pdfDocGlobal.numPages;
-          log(`BẮT ĐẦU XỬ LÝ TOÀN BỘ ${totalPages} TRANG PDF...`);
-
-          for (let p = 1; p <= totalPages; p++) {
-            log(`\n--- Render Trang ${p}/${totalPages} ---`);
-            const page = await pdfDocGlobal.getPage(p);
-            const viewport = page.getViewport({ scale: 2.0 });
-
-            const canvas = document.createElement('canvas');
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
-            const ctx = canvas.getContext('2d');
-            await page.render({ canvasContext: ctx, viewport: viewport }).promise;
-
-            const pageBase64 = canvas.toDataURL('image/png').split(',')[1];
-            log(`-> Đang gửi trang ${p} tới Gemini (${model})...`);
-
-            const rawPageText = await callGeminiSinglePageWithRetry(pageBase64, model);
-            const cleanText = cleanAIText(rawPageText);
-            log(`-> Trang ${p} hoàn tất.`);
-
-            pagesData.push({ pageNum: p, canvas: canvas, text: cleanText });
+        for (let i = 0; i < total; i++) {
+          const p = from + i;
+          if (stopRequested) { stoppedAt = p; reason = 'bạn đã dừng'; break; }
+          try {
+            let canvas, b64;
+            if (isPdfFile) { canvas = await renderPdfPage(p); b64 = canvas.toDataURL('image/png').split(',')[1]; }
+            else { b64 = imageBase64Global; canvas = await imageToCanvas(b64); }
+            setProgress(i, total, `Trang ${p} · đang nhận dạng…`);
+            const raw = await callGeminiSinglePageWithRetry(b64, model);
+            pagesData.push({ pageNum: p, canvas, text: cleanAIText(raw) });
+            setProgress(i + 1, total);
+            log(`Trang ${p} hoàn tất`, 'success');
+          } catch (err) {
+            stoppedAt = p; reason = err.message;
+            $('chipFail').textContent = '1';
+            log(`Trang ${p} thất bại: ${reason}`, 'error');
+            break;
           }
-        } else {
-          log(`Đang gửi ảnh tới Gemini (${model})...`);
-          const rawPageText = await callGeminiSinglePageWithRetry(imageBase64Global, model);
-          const cleanText = cleanAIText(rawPageText);
-          
-          const canvas = await new Promise((res) => {
-            const img = new Image();
-            img.onload = () => {
-              const c = document.createElement('canvas');
-              c.width = img.naturalWidth;
-              c.height = img.naturalHeight;
-              c.getContext('2d').drawImage(img, 0, 0);
-              res(c);
-            };
-            img.src = `data:image/png;base64,${imageBase64Global}`;
-          });
-
-          pagesData.push({ pageNum: 1, canvas: canvas, text: cleanText });
         }
 
-        log(`\n✅ Nhận diện xong! Xuất file theo định dạng [${selectedMathFormat.toUpperCase()}]...`);
-        await buildAndDownloadDocxHTML(pagesData, selectedMathFormat);
+        if (pagesData.length) {
+          log(`Đang xuất ${pagesData.length} trang ra DOCX [${fmt.toUpperCase()}]…`);
+          await buildAndDownloadDocxHTML(pagesData, fmt);
+        }
 
+        const n = pagesData.length;
+        if (stoppedAt === null) {
+          showBanner('success', `Hoàn tất: đã xuất ${n} trang${isPdfFile ? ` (${from}–${to})` : ''}.`);
+        } else if (n > 0) {
+          if (isPdfFile) $('pageFrom').value = stoppedAt;
+          showBanner('warn', `Đã xuất ${n} trang (${pagesData[0].pageNum}–${pagesData[n - 1].pageNum}). Dừng ở trang ${stoppedAt}: ${reason}.` + (isPdfFile ? ` Ô "Từ trang" đã đặt sẵn = ${stoppedAt}.` : ''),
+            'Nhập API key mới', () => { $('directKeyInput').scrollIntoView({ behavior: 'smooth', block: 'center' }); $('directKeyInput').focus(); });
+        } else {
+          showBanner('error', `Chưa xuất được trang nào: ${reason}.`, 'Nhập API key mới', () => { $('directKeyInput').scrollIntoView({ behavior: 'smooth', block: 'center' }); $('directKeyInput').focus(); });
+        }
       } catch (err) {
-        log(`\n❌ TIẾN TRÌNH DỪNG LẠI: ${err.message}`);
+        log(`Lỗi không mong muốn: ${err.message}`, 'error');
+        showBanner('error', err.message);
       } finally {
-        btnRun.disabled = false;
-        btnRun.classList.remove('opacity-50', 'cursor-not-allowed');
+        btnRun.disabled = false; btnRun.classList.remove('opacity-50', 'cursor-not-allowed');
+        $('btnStop').classList.add('hidden');
+        $('runDot').className = 'h-2 w-2 rounded-full bg-slate-600';
+        if (stoppedAt === null) $('progressText').textContent = `${pagesData.length}/${total} trang`;
+        else $('progressText').textContent = `Dừng · ${pagesData.length}/${total} trang`;
       }
     }
 
     async function callGeminiSinglePageWithRetry(base64Data, model) {
+      let lastErr = null;
       let attempts = 0;
       let maxAttempts = Math.max(2, apiKeys.length * 2);
 
@@ -563,8 +683,9 @@ QUY TẮC CỰC KỲ QUAN TRỌNG:
           });
 
           if (!res.ok) {
-            const errJson = await res.json();
-            throw new Error(errJson.error?.message || `HTTP ${res.status}`);
+            let msg = `HTTP ${res.status}`;
+            try { const ej = await res.json(); msg = ej.error?.message || msg; } catch (_) {}
+            const e = new Error(msg); e.status = res.status; throw e;
           }
 
           const resData = await res.json();
@@ -573,13 +694,14 @@ QUY TẮC CỰC KỲ QUAN TRỌNG:
           return outText;
 
         } catch (err) {
-          log(`⚠️ Key ${key.substring(0, 6)}... gặp lỗi (${err.message}). Đang đổi Key...`);
+          lastErr = err;
+          log(`Key #${currentKeyIdx + 1}: ${friendlyError(err)}${apiKeys.length > 1 ? ' → đổi key' : ' → thử lại'}`, 'warn');
           rotateKey();
           await new Promise(r => setTimeout(r, 2000));
           attempts++;
         }
       }
-      throw new Error("Tất cả các API Key đều thất bại.");
+      throw new Error(`mọi API key đều lỗi (${friendlyError(lastErr)})`);
     }
 
     // --- 5. BỘ CHUYỂN LaTeX -> WORD EQUATION (OMML) & DỰNG DOCX ---
@@ -1046,7 +1168,7 @@ async function buildDocxBlob(pagesData,fmt,getImage,JSZipLib){
           return cropCanvasToImage(page.canvas, ymin, xmin, ymax, xmax);
         };
         const blob = await buildDocxBlob(pagesData, mathFormat, getImage, JSZip);
-        const fileName = `DeThi_OCR_${mathFormat.toUpperCase()}.docx`;
+        const fileName = `DeThi_OCR_${mathFormat.toUpperCase()}${isPdfFile ? `_tr${pagesData[0].pageNum}-${pagesData[pagesData.length - 1].pageNum}` : ''}.docx`;
         saveAs(blob, fileName);
         log(`🎉 XUẤT FILE HOÀN TẤT! Đã tải về: ${fileName}`);
         if (mathFormat === 'mathtype') {
