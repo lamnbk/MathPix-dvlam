@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Gemini Toán OCR Pro - Sạch Rác & Chuẩn Equation DOCX</title>
+  <title>Gemini Toán OCR Pro - Sạch Rác & Chuẩn Equation / MathType DOCX</title>
   
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -21,6 +21,7 @@
   <!-- FIREBASE JS SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 
   <style>
     .console-box {
@@ -33,37 +34,56 @@
     .drag-active { border-color: #3b82f6 !important; background-color: rgba(30, 58, 138, 0.25) !important; }
   </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col p-3 md:p-6 font-sans antialiased">
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans antialiased">
   <div id="toastBox" class="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none max-w-xs"></div>
 
-  <div class="max-w-5xl w-full mx-auto flex-1 flex flex-col gap-4">
-    
-    <!-- HEADER -->
-    <header class="bg-slate-900 border border-slate-800 rounded-2xl p-4 md:p-5 flex flex-wrap items-center justify-between gap-4 shadow-xl">
-      <div class="flex items-center gap-3.5">
-        <div class="h-11 w-11 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-500 to-cyan-400 flex items-center justify-center text-white font-black text-2xl shadow-lg shadow-blue-500/20">
-          ∑
-        </div>
-        <div>
-          <div class="flex items-center gap-2">
-            <h1 class="font-extrabold text-lg md:text-xl text-white">Gemini Toán OCR Pro</h1>
-            <span class="px-2 py-0.5 text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full">Clean Edition</span>
-          </div>
-          <p class="text-xs text-slate-400 mt-0.5">Tự động lọc dòng thừa • Xuất Word Equation & MathType • Tách trang chống lỗi hạn mức</p>
+  <nav class="sticky top-0 z-30 w-full bg-[#0a1424]/95 backdrop-blur border-b border-slate-800/80">
+    <div class="max-w-6xl mx-auto px-4 py-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+      <div class="flex items-center gap-2.5 shrink-0">
+        <span class="h-9 w-9 rounded-lg bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center text-white font-extrabold shadow">Σ</span>
+        <div class="flex flex-col leading-tight">
+          <span class="text-sm font-extrabold tracking-tight text-white">Toán OCR <span class="text-cyan-300">Pro</span></span>
+          <span class="text-[10px] font-semibold text-amber-300">Thầy: Đoàn Văn Lãm - ĐT: 0907291079</span>
         </div>
       </div>
-
-      <div class="flex items-center gap-3">
-        <div class="flex flex-col">
-          <label class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Mô hình AI:</label>
-          <select id="selectModel" class="bg-slate-800 border border-slate-700 hover:border-slate-600 rounded-xl px-3 py-1.5 text-xs font-medium text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50">
+      <div class="flex flex-wrap items-center gap-2">
+        <div id="modelBox" class="flex items-center gap-1.5">
+          <span class="hidden lg:inline text-[10px] font-semibold uppercase tracking-wider text-slate-400">Mô hình AI</span>
+          <select id="selectModel" class="bg-slate-800 border border-slate-700 hover:border-slate-600 rounded-lg px-2.5 py-1.5 text-xs font-medium text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50">
+            <option value="auto">🔄 Tự động (2.5 → cao dần)</option>
             <option value="gemini-2.5-flash">gemini-2.5-flash</option>
             <option value="gemini-flash-latest">gemini-flash-latest</option>
             <option value="gemini-3.8-flash">gemini-3.8-flash</option>
           </select>
         </div>
+        <button onclick="openContact()" class="px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-200 transition">📞 Liên hệ</button>
       </div>
-    </header>
+      <div class="flex items-center gap-2">
+        <div id="authGuest" class="flex items-center gap-2">
+          <button onclick="openAuth('login')" class="text-xs font-medium text-slate-300 hover:text-white transition px-2 py-1.5">Đăng nhập</button>
+          <button onclick="openAuth('register')" class="px-3.5 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold shadow transition">Đăng ký</button>
+        </div>
+        <div id="authUser" class="items-center gap-2" style="display:none">
+          <span class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700 text-xs text-slate-200">
+            <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span><b id="userName" class="font-semibold max-w-[140px] truncate"></b><span id="userRole" class="text-[10px] text-amber-300"></span>
+          </span>
+          <button onclick="logout()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold transition">Đăng xuất</button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+<div class="max-w-5xl w-full mx-auto flex-1 flex flex-col gap-4 p-3 md:p-6">
+    
+    
+
+    <div id="appBody" class="flex flex-col gap-4">
+      <div id="guestBanner" class="flex-wrap items-center gap-3 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-2.5 text-xs text-cyan-100" style="display:flex">
+        <span class="text-base">🔓</span>
+        <span class="flex-1 min-w-[200px]"><b class="text-white">Chế độ khách:</b> 1 API key · tối đa 2 ảnh · PDF tối đa 2 trang. Đăng nhập để dùng không giới hạn.</span>
+        <button onclick="openAuth('login')" class="px-3 py-1 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold transition">Đăng nhập</button>
+        <button onclick="openAuth('register')" class="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 font-semibold transition">Đăng ký</button>
+      </div>
 
     <!-- 1. KHU VỰC NHẬP API KEYS TRỰC TIẾP -->
     <section class="bg-slate-900 border border-slate-800 rounded-2xl p-4 md:p-5 shadow-xl flex flex-col gap-3">
@@ -71,12 +91,31 @@
         <label class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
           <span>🔑</span> Danh Sách Gemini API Keys:
           <span id="keyCountText" class="text-emerald-400 font-bold bg-emerald-950/60 border border-emerald-800 px-2 py-0.5 rounded text-[11px]">0 keys</span>
+          <span id="keyHealth" class="px-2 py-0.5 rounded border text-[11px] font-semibold normal-case tracking-normal" style="display:none"></span>
         </label>
-        <button onclick="saveKeysDirectly()" class="bg-blue-600 hover:bg-blue-500 text-white font-medium px-4 py-1.5 rounded-xl text-xs transition flex items-center gap-1.5 shadow">
-          <span>💾</span> Lưu & Đồng Bộ Cloud
-        </button>
+        <div class="flex flex-wrap items-center gap-2">
+          <button onclick="openGetKey()" class="bg-white hover:bg-slate-100 text-slate-800 font-semibold px-3.5 py-1.5 rounded-xl text-xs transition flex items-center gap-1.5 shadow">
+            <span>🔗</span> Lấy API key
+          </button>
+          <button onclick="pasteKeyFromClipboard(false)" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-semibold px-3.5 py-1.5 rounded-xl text-xs transition flex items-center gap-1.5">
+            <span>📋</span> Dán key
+          </button>
+          <button onclick="saveKeysDirectly()" class="bg-blue-600 hover:bg-blue-500 text-white font-medium px-4 py-1.5 rounded-xl text-xs transition flex items-center gap-1.5 shadow">
+            <span>💾</span> Lưu & Đồng Bộ Cloud
+          </button>
+        </div>
       </div>
       <textarea id="directKeyInput" rows="2" placeholder="Dán API Key vào đây (mỗi dòng một key)..." class="bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs font-mono text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 w-full"></textarea>
+      <div id="keyChipRow" class="flex flex-col gap-2" style="display:none">
+        <div class="flex flex-wrap items-center justify-end gap-1.5">
+          <button id="btnReveal" onclick="toggleRevealAll()" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-[11px] font-semibold transition">👁 Hiện key</button>
+          <button id="btnEdit" onclick="toggleEditKeys()" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-[11px] font-semibold transition">✎ Sửa key</button>
+          <button id="btnRecheck" onclick="recheckKeys()" title="Gửi 1 yêu cầu nhỏ qua mỗi key (tốn 1 lượt/key)" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-[11px] font-semibold transition">↻ Kiểm tra hạn mức</button>
+        </div>
+        <div id="keyChips" class="flex flex-col gap-1.5"></div>
+      </div>
+      <p class="text-[11px] text-slate-500">Bấm <b class="text-slate-300">Lấy API key</b> → đăng nhập Google → tạo key → bấm Copy → quay lại trang này, key sẽ tự được dán và lưu.</p>
+      <p id="keyGuestNote" class="text-[11px] text-cyan-300" style="display:block">🔓 Chế độ khách: chỉ dùng được 1 API key. Đăng nhập để thêm nhiều key và đồng bộ.</p>
     </section>
 
     <!-- 2. TÙY CHỌN 3 ĐỊNH DẠNG CÔNG THỨC TOÁN -->
@@ -84,7 +123,7 @@
       <label class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
         <span>📐</span> Chọn định dạng công thức trong file Word (.docx):
       </label>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
         
         <label class="cursor-pointer border border-slate-800 bg-slate-950/80 hover:bg-slate-800/60 rounded-xl p-3 flex items-start gap-3 transition group has-[:checked]:border-blue-500 has-[:checked]:bg-blue-950/30 has-[:checked]:ring-1 has-[:checked]:ring-blue-500/50">
           <input type="radio" name="math_format" value="latex" class="mt-1 text-blue-600 focus:ring-0 bg-slate-900 border-slate-700" />
@@ -95,7 +134,7 @@
         </label>
 
         <label class="cursor-pointer border border-slate-800 bg-slate-950/80 hover:bg-slate-800/60 rounded-xl p-3 flex items-start gap-3 transition group has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-950/30 has-[:checked]:ring-1 has-[:checked]:ring-indigo-500/50">
-          <input type="radio" name="math_format" value="equation" checked class="mt-1 text-indigo-600 focus:ring-0 bg-slate-900 border-slate-700" />
+          <input type="radio" name="math_format" value="equation" class="mt-1 text-indigo-600 focus:ring-0 bg-slate-900 border-slate-700" />
           <div>
             <div class="font-bold text-sm text-slate-200">Word Equation (OMML)</div>
             <p class="text-xs text-slate-400 mt-1">Công thức Word Equation thật (OMML), mở Word lên là sửa trực tiếp được. Khuyên dùng.</p>
@@ -103,10 +142,17 @@
         </label>
 
         <label class="cursor-pointer border border-slate-800 bg-slate-950/80 hover:bg-slate-800/60 rounded-xl p-3 flex items-start gap-3 transition group has-[:checked]:border-cyan-500 has-[:checked]:bg-cyan-950/30 has-[:checked]:ring-1 has-[:checked]:ring-cyan-500/50">
-          <input type="radio" name="math_format" value="mathtype" class="mt-1 text-cyan-600 focus:ring-0 bg-slate-900 border-slate-700" />
+          <input type="radio" name="math_format" value="mathtype" checked class="mt-1 text-cyan-600 focus:ring-0 bg-slate-900 border-slate-700" />
           <div>
             <div class="font-bold text-sm text-slate-200">MathType</div>
-            <p class="text-xs text-slate-400 mt-1">Xuất Equation, rồi trong Word bấm thẻ MathType → Convert Equations để đổi sang MathType.</p>
+            <p class="text-xs text-slate-400 mt-1">Công thức là đối tượng MathType thật (Equation.DSMT4). Cần cài MathType để nhấp đúp sửa; không cần bước Convert Equations.</p>
+          </div>
+        </label>
+        <label class="cursor-pointer border border-slate-800 bg-slate-950/80 hover:bg-slate-800/60 rounded-xl p-3 flex items-start gap-3 transition group has-[:checked]:border-cyan-500 has-[:checked]:bg-cyan-950/30 has-[:checked]:ring-1 has-[:checked]:ring-cyan-500/50">
+          <input type="radio" name="math_format" value="tex" class="mt-1 text-cyan-600 focus:ring-0 bg-slate-900 border-slate-700" />
+          <div>
+            <div class="font-bold text-sm text-slate-200">LaTeX (.tex)</div>
+            <p class="text-xs text-slate-400 mt-1">Xuất mã LaTeX cho Overleaf, TeX Live (kèm hình trong file .zip). File Word (.docx) nạp vào sẽ được chuyển trực tiếp, không tốn API.</p>
           </div>
         </label>
 
@@ -116,13 +162,67 @@
     <!-- 3. KHU VỰC TẢI LÊN FILE / KÉO THẢ / DÁN ẢNH -->
     <section class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col gap-4">
       
-      <div id="dropZone" onclick="triggerFileInput()" class="border-2 border-dashed border-slate-700 hover:border-blue-500 bg-slate-950/60 hover:bg-slate-900/50 rounded-2xl p-5 text-center cursor-pointer transition flex flex-col items-center justify-center gap-2 group">
-        <input type="file" id="hiddenFileInput" accept=".pdf, image/*" class="hidden" onchange="handleFileSelect(event)" />
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-stretch">
+      <div id="dropZone" onclick="triggerFileInput()" class="md:col-span-2 min-h-[210px] border-2 border-dashed border-slate-700 hover:border-blue-500 bg-slate-950/60 hover:bg-slate-900/50 rounded-2xl p-5 text-center cursor-pointer transition flex flex-col items-center justify-center gap-2 group">
+        <input type="file" id="hiddenFileInput" multiple accept=".pdf,.docx,.doc,image/*" class="hidden" onchange="handleFileSelect(event)" />
         <div class="h-10 w-10 rounded-full bg-slate-800 group-hover:bg-blue-600/20 text-slate-300 group-hover:text-blue-400 flex items-center justify-center text-lg transition">
           📂
         </div>
         <p class="text-xs font-semibold text-slate-200">Kéo thả file PDF hoặc Ảnh đề toán vào đây</p>
         <p class="text-[11px] text-slate-500">Hoặc click để chọn tệp từ máy</p>
+      </div>
+      <aside class="md:col-span-1 flex flex-col gap-3 bg-slate-950/60 border border-slate-800 rounded-2xl p-4">
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <span class="h-8 w-8 rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/20 flex items-center justify-center text-sm">🚫</span>
+            <div>
+              <p class="text-xs font-bold text-slate-200 leading-tight">Nội dung bỏ qua</p>
+              <p class="text-[10px] text-slate-500">Mỗi dòng một nội dung</p>
+            </div>
+          </div>
+          <span id="ignoreCount" class="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400">0 mục</span>
+        </div>
+        <textarea id="ignoreInput" rows="5" placeholder="VD:&#10;Website: toanthaylam.vn&#10;Hotline 0907291079&#10;Sưu tầm &amp; biên soạn" class="flex-1 min-h-[96px] w-full resize-none bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 placeholder-slate-600 leading-relaxed focus:outline-none focus:ring-2 focus:ring-rose-500/40 focus:border-rose-500/50"></textarea>
+        <div class="flex items-center justify-between gap-3 pt-3 border-t border-slate-800">
+          <div>
+            <p class="text-xs font-semibold text-slate-200 leading-tight">Chuyển cả đầu trang &amp; chân trang</p>
+            <p class="text-[10px] text-slate-500 mt-0.5">Tắt để bỏ header, footer, số trang</p>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer shrink-0">
+            <input type="checkbox" id="optHeaderFooter" class="sr-only peer" checked />
+            <div class="w-10 h-6 bg-slate-700 rounded-full transition peer-checked:bg-emerald-500 peer-focus-visible:ring-2 peer-focus-visible:ring-emerald-400/50 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow after:transition-all peer-checked:after:translate-x-4"></div>
+          </label>
+        </div>
+        <div class="flex items-center justify-between gap-3 pt-3 border-t border-slate-800">
+          <div>
+            <p class="text-xs font-semibold text-slate-200 leading-tight">Dò hình vẽ chính xác hơn</p>
+            <p class="text-[10px] text-slate-500 mt-0.5">Gọi thêm 1 lượt API cho trang có hình</p>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer shrink-0">
+            <input type="checkbox" id="optFigDetect" class="sr-only peer" />
+            <div class="w-10 h-6 bg-slate-700 rounded-full transition peer-checked:bg-emerald-500 peer-focus-visible:ring-2 peer-focus-visible:ring-emerald-400/50 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow after:transition-all peer-checked:after:translate-x-4"></div>
+          </label>
+        </div>
+        <div class="flex items-center justify-between gap-3 pt-3 border-t border-slate-800">
+          <div>
+            <p class="text-xs font-semibold text-slate-200 leading-tight">Nối liền các trang trong Word</p>
+            <p class="text-[10px] text-slate-500 mt-0.5">Tắt để mỗi trang bắt đầu trang mới</p>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer shrink-0">
+            <input type="checkbox" id="optContinuous" class="sr-only peer" checked />
+            <div class="w-10 h-6 bg-slate-700 rounded-full transition peer-checked:bg-emerald-500 peer-focus-visible:ring-2 peer-focus-visible:ring-emerald-400/50 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow after:transition-all peer-checked:after:translate-x-4"></div>
+          </label>
+        </div>
+        <div class="flex items-center justify-between gap-3 pt-3 border-t border-slate-800">
+          <div>
+            <p class="text-xs font-semibold text-slate-200 leading-tight">Gộp trang mỗi lượt gọi</p>
+            <p class="text-[10px] text-slate-500 mt-0.5">Càng nhiều càng tiết kiệm API</p>
+          </div>
+          <select id="selBatch" class="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50">
+            <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4" selected>4</option><option value="5">5</option><option value="6">6</option>
+          </select>
+        </div>
+      </aside>
       </div>
 
       <div class="flex flex-wrap items-center gap-3">
@@ -153,6 +253,22 @@
         <label class="flex items-center gap-1.5 text-slate-400">đến <input id="pageTo" type="number" min="1" value="1" class="w-16 bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-center text-xs text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50" /></label>
         <span id="rangeTotal" class="text-slate-500"></span>
         <button onclick="resetRange()" class="ml-auto text-blue-400 hover:text-blue-300 font-medium">Chọn tất cả</button>
+      </div>
+
+      <!-- Hàng đợi ảnh -->
+      <div id="imageQueuePanel" class="flex-col gap-3 border border-slate-800 rounded-xl p-3 bg-slate-950/80" style="display:none">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div class="flex flex-wrap items-center gap-2 text-xs">
+            <span class="font-bold text-slate-200">🖼️ Hàng đợi ảnh</span>
+            <span id="queueCount" class="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-300 border border-blue-500/30 text-[10px] font-semibold">0 ảnh</span>
+            <span class="text-slate-500 text-[11px]">Kéo thả hoặc bấm ◀ ▶ để đổi thứ tự · mỗi ảnh là 1 trang Word · dán thêm bằng Ctrl+V</span>
+          </div>
+          <div class="flex items-center gap-3 text-[11px] font-medium">
+            <button id="btnRemoveDone" onclick="removeDone()" class="text-emerald-400 hover:text-emerald-300" style="display:none">✓ Xóa ảnh đã xong</button>
+            <button onclick="clearSelectedFile()" class="text-rose-400 hover:text-rose-300">✕ Xóa tất cả</button>
+          </div>
+        </div>
+        <div id="queueGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5"></div>
       </div>
 
       <!-- Preview ảnh/PDF -->
@@ -186,19 +302,23 @@
         <div class="text-slate-500">Sẵn sàng. Hãy nạp file để bắt đầu.</div>
       </div>
     </section>
+    </div>
   </div>
+  <footer class="text-center pt-3 pb-1">
+    <button onclick="openAdmin()" class="text-[10px] text-slate-600 hover:text-slate-400 transition">⚙ Quản trị</button>
+  </footer>
 
   <script>
     // --- 1. FIREBASE CONFIG ---
     const firebaseConfig = {
-      apiKey: "AIzaSyDq2DxzfurfZpDQq6d49QuQVTbJJpdJAKI",
-      authDomain: "doanvanlam-95238.firebaseapp.com",
-      databaseURL: "https://doanvanlam-95238-default-rtdb.asia-southeast1.firebasedatabase.app",
-      projectId: "doanvanlam-95238",
-      storageBucket: "doanvanlam-95238.firebasestorage.app",
-      messagingSenderId: "359527127604",
-      appId: "1:359527127604:web:754b1b472ebd46ba0f8861",
-      measurementId: "G-L4SFFLZV5P"
+      apiKey: "AIzaSyB613shW1fyYqMSS3pT-yVUihtnOV1AaD4",
+      authDomain: "doanvanlam-291079.firebaseapp.com",
+      databaseURL: "https://doanvanlam-291079-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "doanvanlam-291079",
+      storageBucket: "doanvanlam-291079.firebasestorage.app",
+      messagingSenderId: "938532920912",
+      appId: "1:938532920912:web:5cb701ff5dfb9aefc9fb55",
+      measurementId: "G-790H8XL90T"
     };
 
     let db = null;
@@ -220,7 +340,7 @@ QUY TẮC CỰC KỲ QUAN TRỌNG:
 | Cột 1 | Cột 2 |
 |---|---|
 | Dữ liệu 1 | Dữ liệu 2 |
-6. Nếu có hình vẽ hình học hoặc đồ thị, đánh dấu tọa độ: [IMAGE: ymin, xmin, ymax, xmax]`;
+6. Nếu trang có hình vẽ (hình học, đồ thị, sơ đồ), KHÔNG mô tả hình bằng chữ. Tại đúng vị trí hình xuất hiện (theo thứ tự đọc), viết MỘT dòng riêng: [IMAGE: ymin, xmin, ymax, xmax]. Tọa độ là SỐ NGUYÊN từ 0 đến 1000 theo chiều cao và chiều rộng của cả trang (gốc ở góc trên bên trái), KHÔNG dùng số thập phân, KHÔNG dùng phần trăm. Khung phải bao trọn hình, gồm trục tọa độ, nhãn điểm (A, B, C...), số trên trục; không bao gồm chữ của đề bài. Ví dụ: [IMAGE: 320, 450, 610, 880]. Không coi bảng số liệu hay công thức là hình.`;
 
     let apiKeys = [];
     let currentKeyIdx = 0;
@@ -230,8 +350,7 @@ QUY TẮC CỰC KỲ QUAN TRỌNG:
     let imageBase64Global = null;
 
     window.addEventListener('DOMContentLoaded', () => {
-      loadKeysDual();
-      setupGlobalPaste();
+            setupGlobalPaste();
       setupDragAndDrop();
     });
 
@@ -285,24 +404,23 @@ QUY TẮC CỰC KỲ QUAN TRỌNG:
       $('chipDone').textContent = done;
     }
 
-    function showBanner(type, text, btnLabel, btnFn) {
+    function showBanner(type, text, a, b) {
+      const actions = Array.isArray(a) ? a : (a ? [{ label: a, fn: b }] : []);
       const cls = type === 'error' ? 'bg-rose-500/10 border-rose-500/30 text-rose-300'
         : type === 'success' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
         : 'bg-amber-500/10 border-amber-500/30 text-amber-300';
-      const b = $('resultBanner');
-      b.className = `flex flex-wrap items-center gap-2 text-xs rounded-xl border px-3 py-2 ${cls}`;
-      b.innerHTML = '';
+      const box = $('resultBanner');
+      box.className = `flex flex-wrap items-center gap-2 text-xs rounded-xl border px-3 py-2 ${cls}`;
+      box.innerHTML = '';
       const sp = document.createElement('span');
-      sp.className = 'flex-1 min-w-[180px]';
-      sp.textContent = text;
-      b.appendChild(sp);
-      if (btnLabel) {
+      sp.className = 'flex-1 min-w-[180px]'; sp.textContent = text; box.appendChild(sp);
+      const wrap = document.createElement('div'); wrap.className = 'flex flex-wrap items-center gap-1.5';
+      actions.forEach(x => {
         const bt = document.createElement('button');
-        bt.className = 'px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 font-semibold transition';
-        bt.textContent = btnLabel;
-        bt.onclick = btnFn;
-        b.appendChild(bt);
-      }
+        bt.className = x.primary ? 'px-3 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold transition' : 'px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 font-semibold transition';
+        bt.textContent = x.label; bt.onclick = x.fn; wrap.appendChild(bt);
+      });
+      if (actions.length) box.appendChild(wrap);
     }
 
     function friendlyError(err) {
@@ -345,16 +463,19 @@ QUY TẮC CỰC KỲ QUAN TRỌNG:
     function updateKeyUI() {
       document.getElementById('keyCountText').textContent = `${apiKeys.length} keys`;
       document.getElementById('directKeyInput').value = apiKeys.join('\n');
+      renderKeyChips();
     }
 
     function saveKeysDirectly() {
       const raw = document.getElementById('directKeyInput').value.trim();
-      apiKeys = raw.split(/[\n,]+/).map(k => k.trim()).filter(k => k.length > 0);
+      apiKeys = raw.split(/[\s,]+/).map(k => k.trim()).filter(k => k.length > 0);
+      if (!session && apiKeys.length > LIMITS.keys) { apiKeys = apiKeys.slice(0, LIMITS.keys); document.getElementById('directKeyInput').value = apiKeys.join('\n'); needLogin('Chế độ khách chỉ dùng 1 API key.'); }
       currentKeyIdx = 0;
-      localStorage.setItem('gemini_ocr_keys', JSON.stringify(apiKeys));
+      localStorage.setItem(session ? 'gemini_ocr_keys' : 'gemini_guest_key', JSON.stringify(apiKeys));
       document.getElementById('keyCountText').textContent = `${apiKeys.length} keys`;
+      renderKeyChips();
 
-      if (db) {
+      if (db && session) {
         db.ref('ocr_config/api_keys').set(apiKeys)
           .then(() => log(`☁️ Đã lưu ${apiKeys.length} API Keys lên Firebase.`))
           .catch((e) => log(`⚠️ Lỗi lưu Firebase: ${e.message}`));
@@ -368,7 +489,7 @@ QUY TẮC CỰC KỲ QUAN TRỌNG:
       if (apiKeys.length === 0) {
         const raw = document.getElementById('directKeyInput').value.trim();
         if (raw) {
-          apiKeys = raw.split(/[\n,]+/).map(k => k.trim()).filter(k => k.length > 0);
+          apiKeys = raw.split(/[\s,]+/).map(k => k.trim()).filter(k => k.length > 0).slice(0, session ? 1e9 : LIMITS.keys);
           updateKeyUI();
         }
       }
@@ -378,8 +499,11 @@ QUY TẮC CỰC KỲ QUAN TRỌNG:
 
     function rotateKey() {
       if (apiKeys.length > 1) {
+        for (let i = 1; i <= apiKeys.length; i++) {
+          const idx = (currentKeyIdx + i) % apiKeys.length;
+          if (!isDead(apiKeys[idx])) { currentKeyIdx = idx; return; }
+        }
         currentKeyIdx = (currentKeyIdx + 1) % apiKeys.length;
-        /* đã log ở nơi gọi */
       }
     }
 
@@ -397,14 +521,14 @@ QUY TẮC CỰC KỲ QUAN TRỌNG:
         if (valid.length > 0) {
           const select = document.getElementById('selectModel');
           const cur = select.value;
-          select.innerHTML = '';
+          select.innerHTML = '<option value="auto">🔄 Tự động (2.5 → cao dần)</option>';
           valid.forEach(m => {
             const opt = document.createElement('option');
             opt.value = m;
             opt.textContent = m;
             select.appendChild(opt);
           });
-          if (valid.includes(cur)) select.value = cur;
+          select.value = (cur === 'auto' || valid.includes(cur)) ? cur : 'auto';
           log(`Đã nạp ${valid.length} mô hình tự động từ Google.`);
         }
       } catch (e) {}
@@ -422,7 +546,7 @@ QUY TẮC CỰC KỲ QUAN TRỌNG:
       });
       dropZone.addEventListener('drop', (e) => {
         const files = e.dataTransfer.files;
-        if (files && files.length > 0) handleFileObject(files[0]);
+        if (files && files.length > 0) handleFiles([...files]);
       }, false);
     }
 
@@ -434,8 +558,7 @@ QUY TẮC CỰC KỲ QUAN TRỌNG:
           if (item.type.includes('image')) {
             const blob = item.getAsFile();
             processImageFile(blob, 'clipboard_math_image.png');
-            log('Đã dán ảnh từ Clipboard thành công (Ctrl+V)!');
-            break;
+            log('Đã thêm ảnh từ Clipboard vào hàng đợi (Ctrl+V).');
           }
         }
       });
@@ -461,16 +584,20 @@ QUY TẮC CỰC KỲ QUAN TRỌNG:
     }
 
     function handleFileSelect(e) {
-      const file = e.target.files[0];
-      if (file) handleFileObject(file);
+      const files = [...e.target.files];
+      if (files.length) handleFiles(files);
+      e.target.value = '';
     }
 
     async function handleFileObject(file) {
       if (file.type.includes('pdf') || file.name.toLowerCase().endsWith('.pdf')) {
-        isPdfFile = true;
-        selectedFileBlob = file;
         const buffer = await file.arrayBuffer();
-        pdfDocGlobal = await pdfjsLib.getDocument(new Uint8Array(buffer)).promise;
+        const doc = await pdfjsLib.getDocument(new Uint8Array(buffer)).promise;
+        if (!session && doc.numPages > LIMITS.pdfPages) { needLogin(`File PDF có ${doc.numPages} trang. Chế độ khách chỉ chuyển tối đa ${LIMITS.pdfPages} trang.`); return; }
+        isPdfFile = true;
+        imageQueue = []; renderQueue();
+        selectedFileBlob = file;
+        pdfDocGlobal = doc;
 
         document.getElementById('fileInfoBadge').textContent = `📄 Đã chọn PDF: ${file.name}`;
         document.getElementById('fileInfoBadge').className = 'flex-1 truncate text-xs text-emerald-400 font-medium px-2';
@@ -489,30 +616,116 @@ QUY TẮC CỰC KỲ QUAN TRỌNG:
       }
     }
 
-    function processImageFile(blob, name) {
-      isPdfFile = false;
-      pdfDocGlobal = null;
-      selectedFileBlob = blob;
-      $('rangeRow').classList.add('hidden');
+    // ===== HÀNG ĐỢI NHIỀU ẢNH (mỗi ảnh = 1 trang Word, đổi thứ tự được) =====
+    let imageQueue = [], qSeq = 0, ocrRunning = false, queueChain = Promise.resolve(), dragId = null;
+    const MAX_SIDE = 2600;
 
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        imageBase64Global = e.target.result.split(',')[1];
-        document.getElementById('fileInfoBadge').textContent = `🖼️ Đã chọn Ảnh: ${name}`;
-        document.getElementById('fileInfoBadge').className = 'flex-1 truncate text-xs text-emerald-400 font-medium px-2';
-        
-        const previewContainer = document.getElementById('previewContainer');
-        const imgEl = document.getElementById('imagePreview');
-        imgEl.src = e.target.result;
-        imgEl.classList.remove('hidden');
-        previewContainer.classList.remove('hidden');
-        document.getElementById('previewName').textContent = name;
-        document.getElementById('previewPages').textContent = `${(blob.size / 1024).toFixed(1)} KB`;
-      };
-      reader.readAsDataURL(blob);
+    function handleFiles(files) {
+      const word = files.find(f => /\.docx?$/i.test(f.name));
+      if (word) { handleWordFile(word); return; }
+      const pdf = files.find(f => f.type.includes('pdf') || f.name.toLowerCase().endsWith('.pdf'));
+      const imgs = files.filter(f => f.type.startsWith('image/'));
+      if (imgs.length) {
+        if (pdf) toast('Không trộn được PDF và ảnh cùng lúc, chỉ nhận các ảnh.');
+        let list = imgs;
+        if (!session) { const room = Math.max(0, LIMITS.images - imageQueue.length); if (imgs.length > room) { list = imgs.slice(0, room); needLogin(`Chế độ khách chỉ thêm tối đa ${LIMITS.images} ảnh.`); } }
+        list.forEach(f => processImageFile(f, f.name));
+      } else if (pdf) handleFileObject(pdf);
+    }
+    function processImageFile(blob, name) {
+      if (ocrRunning) { toast('Đang chuyển đổi, chưa thể thêm ảnh.'); return; }
+      isPdfFile = false; pdfDocGlobal = null; selectedFileBlob = blob;
+      $('rangeRow').classList.add('hidden'); $('previewContainer').classList.add('hidden');
+      queueChain = queueChain.then(() => ingestImage(blob, name)).catch(() => toast('Không đọc được ảnh này.', 'error'));
+    }
+    function ingestImage(blob, name) {
+      if (!session && imageQueue.length >= LIMITS.images) { needLogin(`Chế độ khách chỉ thêm tối đa ${LIMITS.images} ảnh.`); return Promise.resolve(); }
+      return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(blob), img = new Image();
+        img.onload = () => {
+          const sc = Math.min(1, MAX_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
+          const w = Math.max(1, Math.round(img.naturalWidth * sc)), h = Math.max(1, Math.round(img.naturalHeight * sc));
+          const c = document.createElement('canvas'); c.width = w; c.height = h;
+          const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h); ctx.drawImage(img, 0, 0, w, h);
+          const t = document.createElement('canvas'), ts = Math.min(1, 240 / w);
+          t.width = Math.max(1, Math.round(w * ts)); t.height = Math.max(1, Math.round(h * ts));
+          t.getContext('2d').drawImage(c, 0, 0, t.width, t.height);
+          const id = ++qSeq;
+          imageQueue.push({ id, name: name === 'clipboard_math_image.png' ? `Ảnh dán ${id}` : name, base64: c.toDataURL('image/png').split(',')[1], thumb: t.toDataURL('image/jpeg', 0.75), status: '' });
+          URL.revokeObjectURL(url); renderQueue(); resolve();
+        };
+        img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('img')); };
+        img.src = url;
+      });
+    }
+    function queueBusy() { if (ocrRunning) { toast('Đang chuyển đổi, chưa thể chỉnh hàng đợi.'); return true; } return false; }
+    function moveItem(id, dir) {
+      if (queueBusy()) return;
+      const i = imageQueue.findIndex(x => x.id === id), j = i + dir;
+      if (i < 0 || j < 0 || j >= imageQueue.length) return;
+      [imageQueue[i], imageQueue[j]] = [imageQueue[j], imageQueue[i]]; renderQueue();
+    }
+    function reorder(fromId, toId) {
+      if (queueBusy()) return;
+      const a = imageQueue.findIndex(x => x.id === fromId), b = imageQueue.findIndex(x => x.id === toId);
+      if (a < 0 || b < 0 || a === b) return;
+      const [m] = imageQueue.splice(a, 1); imageQueue.splice(b, 0, m); renderQueue();
+    }
+    function removeItem(id) { if (queueBusy()) return; imageQueue = imageQueue.filter(x => x.id !== id); renderQueue(); }
+    function removeDone() { if (queueBusy()) return; imageQueue = imageQueue.filter(x => x.status !== 'done'); renderQueue(); }
+
+    function renderQueue() {
+      const panel = $('imageQueuePanel'), grid = $('queueGrid'), badge = $('fileInfoBadge');
+      if (!imageQueue.length) {
+        panel.style.display = 'none'; grid.innerHTML = '';
+        if (!isPdfFile) {
+          selectedFileBlob = null;
+          badge.textContent = 'Chưa chọn file (Nhấn Ctrl+V để dán ảnh bất cứ lúc nào)';
+          badge.className = 'flex-1 min-w-[200px] truncate text-xs text-slate-400 italic px-2';
+        }
+        return;
+      }
+      panel.style.display = 'flex';
+      $('queueCount').textContent = session ? `${imageQueue.length} ảnh` : `${imageQueue.length}/${LIMITS.images} ảnh · khách`;
+      $('btnRemoveDone').style.display = imageQueue.some(x => x.status === 'done') ? 'inline-block' : 'none';
+      badge.textContent = `🖼️ ${imageQueue.length} ảnh trong hàng đợi`;
+      badge.className = 'flex-1 min-w-[200px] truncate text-xs text-emerald-400 font-medium px-2';
+      grid.innerHTML = '';
+      imageQueue.forEach((it, i) => {
+        const card = document.createElement('div');
+        card.draggable = !ocrRunning; card.dataset.id = it.id;
+        card.className = 'relative rounded-xl border bg-slate-900 overflow-hidden transition ' + (it.status === 'done' ? 'border-emerald-500/60' : it.status === 'fail' ? 'border-rose-500/70' : it.status === 'skip' ? 'border-slate-500 opacity-60' : 'border-slate-700 hover:border-blue-500/60');
+        const img = document.createElement('img');
+        img.src = it.thumb; img.draggable = false; img.className = 'h-24 w-full object-cover bg-slate-950 cursor-grab';
+        const num = document.createElement('span');
+        num.className = 'absolute top-1 left-1 bg-black/70 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md'; num.textContent = `#${i + 1}`;
+        card.append(img, num);
+        if (it.status) {
+          const st = document.createElement('span');
+          st.className = 'absolute top-1 right-1 text-[10px] font-bold px-1.5 py-0.5 rounded-md ' + (it.status === 'done' ? 'bg-emerald-500 text-slate-950' : it.status === 'skip' ? 'bg-slate-500 text-white' : 'bg-rose-500 text-white');
+          st.textContent = it.status === 'done' ? '✓ xong' : it.status === 'skip' ? '⤼ bỏ qua' : '✕ lỗi'; card.appendChild(st);
+        }
+        const bar = document.createElement('div');
+        bar.className = 'flex items-center gap-1 px-1 py-1 bg-slate-950/80';
+        const mk = (txt, cls, fn, dis, title) => { const b = document.createElement('button'); b.textContent = txt; b.title = title || ''; b.disabled = !!dis; b.className = `px-1.5 py-0.5 rounded text-[11px] font-bold disabled:opacity-30 ${cls}`; b.onclick = fn; return b; };
+        const nm = document.createElement('span');
+        nm.className = 'flex-1 truncate text-[10px] text-slate-400 text-center'; nm.textContent = it.name; nm.title = it.name;
+        bar.append(mk('◀', 'bg-slate-800 hover:bg-slate-700 text-slate-200', () => moveItem(it.id, -1), i === 0, 'Đưa lên trước'), nm,
+          mk('▶', 'bg-slate-800 hover:bg-slate-700 text-slate-200', () => moveItem(it.id, 1), i === imageQueue.length - 1, 'Đưa ra sau'),
+          mk('✕', 'bg-rose-600/80 hover:bg-rose-500 text-white', () => removeItem(it.id), false, 'Xóa ảnh này'));
+        card.appendChild(bar);
+        card.addEventListener('dragstart', (e) => { dragId = it.id; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(it.id)); card.classList.add('opacity-40'); });
+        card.addEventListener('dragend', () => { dragId = null; card.classList.remove('opacity-40'); });
+        card.addEventListener('dragover', (e) => { if (dragId === null) return; e.preventDefault(); card.classList.add('ring-2', 'ring-blue-400'); });
+        card.addEventListener('dragleave', () => card.classList.remove('ring-2', 'ring-blue-400'));
+        card.addEventListener('drop', (e) => { e.preventDefault(); e.stopPropagation(); card.classList.remove('ring-2', 'ring-blue-400'); if (dragId !== null) reorder(dragId, it.id); });
+        grid.appendChild(card);
+      });
     }
 
     function clearSelectedFile() {
+      if (queueBusy()) return;
+      imageQueue = []; isPdfFile = false; renderQueue();
       $('rangeRow').classList.add('hidden');
       selectedFileBlob = null;
       pdfDocGlobal = null;
@@ -557,6 +770,558 @@ QUY TẮC CỰC KỲ QUAN TRỌNG:
       return filtered.join('\n').trim();
     }
 
+    // ===== TÀI KHOẢN: ĐĂNG KÝ / ĐĂNG NHẬP / QUẢN TRỊ =====
+    const ADMIN_USER = 'dvlam';
+    const DEFAULT_ADMIN = { salt: 'a1f3c9e27b4d6081', hash: '85345fdb8524c1d58e291362f4685459d4288a7fe79664c9af58c5aa4ac83d9d' };
+    const INP = 'w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50';
+    const BTN = 'w-full px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-500 hover:from-blue-500 hover:to-indigo-400 text-white text-xs font-bold shadow transition disabled:opacity-50';
+    let session = null, keysLoaded = false, pendingAdmin = false, userListRef = null;
+
+    async function sha256(t) {
+      const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t));
+      return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join('');
+    }
+    const hashPw = (salt, pw) => sha256(salt + ':' + pw);
+    const newSalt = () => [...crypto.getRandomValues(new Uint8Array(8))].map(x => x.toString(16).padStart(2, '0')).join('');
+    const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    function closeModal() {
+      if (userListRef) { userListRef.off(); userListRef = null; }
+      const m = $('modalRoot'); if (m) m.remove();
+    }
+    function openModal(title, body, wide) {
+      closeModal();
+      const d = document.createElement('div');
+      d.id = 'modalRoot';
+      d.className = 'fixed inset-0 z-40 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm';
+      d.innerHTML = `<div class="w-full ${wide ? 'max-w-2xl' : 'max-w-sm'} bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl p-5 max-h-[90vh] overflow-y-auto"><div class="flex items-center justify-between mb-4"><h2 class="text-sm font-bold text-white">${title}</h2><button onclick="closeModal()" class="text-slate-400 hover:text-white text-lg leading-none">✕</button></div>${body}</div>`;
+      d.addEventListener('mousedown', (e) => { if (e.target === d) closeModal(); });
+      document.body.appendChild(d);
+      const f = d.querySelector('input'); if (f) f.focus();
+    }
+
+    function openAuth(mode) {
+      const reg = mode === 'register';
+      const tab = (m, label) => `<button onclick="openAuth('${m}')" class="flex-1 py-1.5 rounded-lg transition ${mode === m ? 'bg-slate-700 text-white shadow' : 'text-slate-400 hover:text-slate-200'}">${label}</button>`;
+      openModal(reg ? 'Đăng ký tài khoản' : 'Đăng nhập',
+        `<div class="flex gap-1 p-1 bg-slate-800 rounded-xl mb-4 text-xs font-semibold">${tab('login', 'Đăng nhập')}${tab('register', 'Đăng ký')}</div>
+        ${GOOGLE_BTN}${GOOGLE_DIV}
+        <div class="flex flex-col gap-3">
+          ${reg ? `<input id="auName" class="${INP}" placeholder="Họ và tên" />` : ''}
+          <input id="auUser" class="${INP}" placeholder="Tên đăng nhập" autocomplete="username" />
+          ${pwInput('auPass', 'Mật khẩu', reg ? 'new-password' : 'current-password', `onkeydown="if(event.key==='Enter')submitAuth('${mode}')"`)}
+          ${reg ? pwInput('auPass2', 'Nhập lại mật khẩu', 'new-password', `onkeydown="if(event.key==='Enter')submitAuth('register')"`) : ''}
+          <p id="auMsg" class="text-[11px] text-rose-400 min-h-[16px]"></p>
+          <button id="auBtn" onclick="submitAuth('${mode}')" class="${BTN}">${reg ? 'Gửi đăng ký' : 'Đăng nhập'}</button>
+          ${reg ? '<p class="text-[10px] text-slate-500 text-center">Tên đăng nhập: 3–20 ký tự (chữ thường, số, _). Cần quản trị viên duyệt mới dùng được.</p>' : ''}
+        </div>`);
+    }
+
+    async function submitAuth(mode) {
+      const msg = (t) => { const m = $('auMsg'); if (m) m.textContent = t; };
+      if (!db || !(window.crypto && crypto.subtle)) { msg('Không kết nối được máy chủ tài khoản.'); return; }
+      const u = $('auUser').value.trim().toLowerCase(), pw = $('auPass').value;
+      if (!/^[a-z0-9_]{3,20}$/.test(u)) { msg('Tên đăng nhập 3–20 ký tự: chữ thường, số, dấu _.'); return; }
+      if (pw.length < 6) { msg('Mật khẩu tối thiểu 6 ký tự.'); return; }
+      $('auBtn').disabled = true;
+      try {
+        if (mode === 'register') {
+          if (u === ADMIN_USER || u.startsWith('g_')) { msg('Tên đăng nhập này đã được dành riêng.'); return; }
+          if (pw !== $('auPass2').value) { msg('Mật khẩu nhập lại không khớp.'); return; }
+          const ref = db.ref('ocr_users/' + u);
+          if ((await ref.once('value')).exists()) { msg('Tên đăng nhập đã tồn tại.'); return; }
+          const salt = newSalt();
+          await ref.set({ name: $('auName').value.trim() || u, salt, hash: await hashPw(salt, pw), status: 'pending', createdAt: Date.now() });
+          closeModal(); toast('Đã gửi đăng ký. Vui lòng chờ quản trị viên duyệt.', 'success');
+          return;
+        }
+        const isAdmin = u === ADMIN_USER;
+        const rec = isAdmin ? ((await db.ref('ocr_admin').once('value')).val() || DEFAULT_ADMIN) : (await db.ref('ocr_users/' + u).once('value')).val();
+        if (!rec || (await hashPw(rec.salt, pw)) !== rec.hash) { msg('Sai tên đăng nhập hoặc mật khẩu.'); return; }
+        if (!isAdmin && rec.status !== 'approved') { msg(rec.status === 'pending' ? 'Tài khoản đang chờ quản trị viên duyệt.' : 'Tài khoản đã bị khóa hoặc bị từ chối.'); return; }
+        session = { user: u, role: isAdmin ? 'admin' : 'user', name: isAdmin ? 'Quản trị viên' : (rec.name || u) };
+        if (!isAdmin) { try { localStorage.setItem('ocr_session', JSON.stringify({ user: u })); } catch (e) {} }
+        closeModal(); applyAuthState(); toast(`Xin chào, ${session.name}!`, 'success');
+        if (pendingAdmin && isAdmin) { pendingAdmin = false; openAdmin(); }
+      } catch (e) { msg('Lỗi kết nối: ' + e.message); }
+      finally { const b = $('auBtn'); if (b) b.disabled = false; }
+    }
+
+    let keysMode = null;
+    function applyAuthState() {
+      const on = !!session;
+      $('guestBanner').style.display = on ? 'none' : 'flex';
+      $('keyGuestNote').style.display = on ? 'none' : 'block';
+      $('authGuest').style.display = on ? 'none' : 'flex';
+      $('authUser').style.display = on ? 'flex' : 'none';
+      if (on) {
+        $('userName').textContent = session.name;
+        $('userRole').textContent = session.role === 'admin' ? '· Quản trị' : '';
+      }
+      const mode = on ? 'user' : 'guest';
+      if (mode !== keysMode) { keysMode = mode; if (on) loadKeysDual(); else loadGuestKey(); }
+      renderQueue();
+    }
+    function logout() {
+      session = null; try { localStorage.removeItem('ocr_session'); } catch (e) {} try { firebase.auth().signOut(); } catch (e) {}
+      applyAuthState(); toast('Đã đăng xuất.', 'success');
+    }
+    async function restoreSession() {
+      try {
+        const s = JSON.parse(localStorage.getItem('ocr_session') || 'null');
+        if (s && s.user && db) {
+          const r = (await db.ref('ocr_users/' + s.user).once('value')).val();
+          if (r && r.status === 'approved') session = { user: s.user, role: 'user', name: r.name || s.user };
+        }
+      } catch (e) {}
+      applyAuthState();
+    }
+    window.addEventListener('DOMContentLoaded', restoreSession);
+
+    // ===== ĐĂNG NHẬP GOOGLE =====
+    const GOOGLE_BTN = `<button onclick="googleLogin()" class="w-full flex items-center justify-center gap-2.5 px-4 py-2.5 rounded-xl bg-white hover:bg-slate-100 text-slate-800 text-xs font-bold shadow transition"><svg viewBox="0 0 48 48" class="h-4 w-4 shrink-0"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>Tiếp tục với Google</button>`;
+    const GOOGLE_DIV = `<div class="flex items-center gap-3 my-3 text-[10px] text-slate-500"><span class="h-px flex-1 bg-slate-800"></span>hoặc<span class="h-px flex-1 bg-slate-800"></span></div>`;
+    async function googleLogin() {
+      if (!(window.firebase && firebase.auth)) { toast('Chưa tải được Firebase Auth.', 'error'); return; }
+      try {
+        const prov = new firebase.auth.GoogleAuthProvider();
+        prov.setCustomParameters({ prompt: 'select_account' });
+        await firebase.auth().signInWithPopup(prov);
+      } catch (e) {
+        const map = {
+          'auth/popup-closed-by-user': null, 'auth/cancelled-popup-request': null,
+          'auth/popup-blocked': 'Trình duyệt đang chặn cửa sổ đăng nhập. Hãy cho phép popup rồi thử lại.',
+          'auth/unauthorized-domain': 'Tên miền này chưa được cho phép. Thêm vào Firebase → Authentication → Settings → Authorized domains.',
+          'auth/configuration-not-found': 'Dự án Firebase chưa khởi tạo Authentication. Vào Firebase Console → Authentication → Get started, rồi bật Google ở Sign-in method.',
+          'auth/operation-not-allowed': 'Chưa bật đăng nhập Google trong Firebase Console (Authentication → Sign-in method).',
+          'auth/operation-not-supported-in-this-environment': 'Cần mở trang qua https hoặc localhost, không dùng được khi mở trực tiếp file.'
+        };
+        const m = e.code in map ? map[e.code] : (e.message || 'Đăng nhập Google thất bại.');
+        if (m) toast(m, 'error');
+      }
+    }
+    async function handleGoogleUser(user) {
+      if (!user) { if (session && session.provider === 'google') { session = null; applyAuthState(); } return; }
+      if (session && session.role === 'admin') return;
+      try {
+        const key = 'g_' + user.uid, ref = db.ref('ocr_users/' + key);
+        let r = (await ref.once('value')).val();
+        if (!r) {
+          r = { name: user.displayName || user.email, email: user.email || '', provider: 'google', status: 'pending', createdAt: Date.now() };
+          await ref.set(r);
+        }
+        if (r.status === 'approved') {
+          session = { user: key, role: 'user', name: r.name || user.email, provider: 'google' };
+          closeModal(); applyAuthState(); toast(`Xin chào, ${session.name}!`, 'success');
+        } else {
+          toast(r.status === 'pending' ? 'Đã gửi yêu cầu bằng tài khoản Google. Vui lòng chờ quản trị viên duyệt.' : 'Tài khoản đã bị khóa hoặc bị từ chối.', 'warn');
+          await firebase.auth().signOut();
+        }
+      } catch (e) { toast('Lỗi đăng nhập Google: ' + e.message, 'error'); }
+    }
+    window.addEventListener('DOMContentLoaded', () => { try { firebase.auth().onAuthStateChanged(handleGoogleUser); } catch (e) {} });
+
+    // ===== LẤY API KEY & TỰ ĐỘNG DÁN =====
+    const KEY_RE = /^(AIza[0-9A-Za-z_\-]{30,}|AQ\.[0-9A-Za-z_\-]{20,})$/;
+    let waitingKey = false;
+    function openGetKey() {
+      window.open('https://aistudio.google.com/apikey', '_blank', 'noopener');
+      waitingKey = true;
+      toast('Tạo key ở Google AI Studio rồi bấm Copy. Quay lại đây, key sẽ tự được dán.', 'success');
+    }
+    async function pasteKeyFromClipboard(auto) {
+      try {
+        const t = ((await navigator.clipboard.readText()) || '').trim();
+        const found = t.split(/[\s,]+/).filter(k => KEY_RE.test(k));
+        if (!found.length) { if (!auto) toast('Clipboard chưa có API key hợp lệ. Hãy Copy key trước.'); return false; }
+        const ta = $('directKeyInput');
+        const cur = ta.value.split(/[\s,]+/).map(k => k.trim()).filter(Boolean);
+        const add = found.filter(k => !cur.includes(k));
+        if (!add.length) { if (!auto) toast('Key này đã có trong danh sách.'); return false; }
+        ta.value = session ? [...cur, ...add].join('\n') : add[0];
+        saveKeysDirectly();
+        toast(`Đã dán và lưu ${add.length} key mới. Đang kiểm tra…`, 'success');
+        autoCheckKeys();
+        return true;
+      } catch (e) {
+        if (!auto) toast('Trình duyệt chưa cho đọc clipboard. Hãy dán tay (Ctrl+V) vào ô danh sách key.');
+        return false;
+      }
+    }
+    window.addEventListener('focus', () => {
+      if (waitingKey && session) pasteKeyFromClipboard(true).then(ok => { if (ok) waitingKey = false; });
+    });
+
+    // ===== THÔNG TIN LIÊN HỆ =====
+    const CONTACT = { name: 'Thầy Đoàn Văn Lãm', role: 'Người thiết kế & quản trị hệ thống', phone: '0907291079', email: '', school: '', zalo: '', facebook: '' };
+    function copyText(t) { navigator.clipboard.writeText(t).then(() => toast('Đã sao chép: ' + t, 'success')).catch(() => toast('Không sao chép được.')); }
+    function openContact() {
+      const row = (icon, label, val, actions) => `<div class="flex items-center gap-3 bg-slate-950/60 border border-slate-800 rounded-xl px-3 py-2.5">
+        <span class="text-base">${icon}</span>
+        <div class="flex-1 min-w-0"><p class="text-[10px] uppercase tracking-wider text-slate-500">${label}</p><p class="text-sm font-semibold text-slate-100 break-words">${esc(val)}</p></div>${actions || ''}</div>`;
+      const btn = (t, h) => `<a href="${h}" target="_blank" rel="noopener" class="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-semibold">${t}</a>`;
+      const rows = [row('📞', 'Điện thoại', CONTACT.phone, btn('Gọi', 'tel:' + CONTACT.phone) + `<button onclick="copyText('${CONTACT.phone}')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-semibold">Sao chép</button>`)];
+      if (CONTACT.zalo) rows.push(row('💬', 'Zalo', CONTACT.zalo, btn('Mở', 'https://zalo.me/' + CONTACT.zalo)));
+      if (CONTACT.email) rows.push(row('✉️', 'Email', CONTACT.email, btn('Gửi', 'mailto:' + CONTACT.email)));
+      if (CONTACT.facebook) rows.push(row('🌐', 'Facebook', CONTACT.facebook, btn('Mở', CONTACT.facebook)));
+      if (CONTACT.school) rows.push(row('🏫', 'Đơn vị công tác', CONTACT.school));
+      openModal('Thông tin liên hệ', `<div class="flex flex-col gap-3">
+        <div class="flex items-center gap-3 pb-1">
+          <span class="h-12 w-12 rounded-2xl bg-amber-400/10 border border-amber-400/30 flex items-center justify-center text-2xl">👨‍🏫</span>
+          <div><p class="text-sm font-bold text-white">${esc(CONTACT.name)}</p><p class="text-[11px] text-amber-300">${esc(CONTACT.role)}</p></div>
+        </div>${rows.join('')}</div>`);
+    }
+
+    // ===== TRẠNG THÁI & CẢNH BÁO API KEY =====
+    const keyStatus = {};
+    const QUOTA_COOLDOWN = 10 * 60 * 1000;
+    function keyState(k) {
+      const st = keyStatus[k];
+      if (!st) return 'unknown';
+      if (st.state === 'quota' && Date.now() - st.ts > QUOTA_COOLDOWN) return 'unknown';
+      return st.state;
+    }
+    const isDead = (k) => { const s = keyState(k); return s === 'quota' || s === 'invalid'; };
+    function classifyErr(err) {
+      const m = (err && err.message) || '', st = err && err.status;
+      if (st === 429 || /quota|rate.?limit|RESOURCE_EXHAUSTED|exhaust/i.test(m)) return 'quota';
+      if (st === 401 || st === 403 || /API key not valid|API_KEY_INVALID|expired/i.test(m) || (st === 400 && /API key/i.test(m))) return 'invalid';
+      return 'error';
+    }
+    function markKey(k, state, msg) { keyStatus[k] = { state, msg: msg || '', ts: Date.now() }; renderKeyChips(); }
+    let keysEditing = false, revealAll = false;
+    const revealed = new Set();
+    function maskKey(k) { return k.length <= 10 ? '•'.repeat(k.length) : k.slice(0, 4) + '•'.repeat(Math.min(24, k.length - 8)) + k.slice(-4); }
+    function toggleRevealAll() { revealAll = !revealAll; revealed.clear(); renderKeyChips(); }
+    function toggleEditKeys() { keysEditing = !keysEditing; renderKeyChips(); if (keysEditing) $('directKeyInput').focus(); }
+    function removeKey(k) {
+      $('directKeyInput').value = inputKeys().filter(x => x !== k).join('\n');
+      delete keyStatus[k]; revealed.delete(k); saveKeysDirectly();
+    }
+    function renderKeyChips() {
+      const row = $('keyChipRow'), badge = $('keyHealth'), ta = $('directKeyInput');
+      if (!row || !badge) return;
+      const keys = inputKeys();
+      ta.style.display = (keysEditing || !keys.length) ? '' : 'none';
+      if (!keys.length) { row.style.display = 'none'; badge.style.display = 'none'; return; }
+      row.style.display = 'flex';
+      $('btnReveal').textContent = revealAll ? '🙈 Ẩn key' : '👁 Hiện key';
+      $('btnEdit').textContent = keysEditing ? '✓ Xong' : '✎ Sửa key';
+      const cls = {
+        ok: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30', quota: 'bg-amber-500/10 text-amber-300 border-amber-500/30',
+        invalid: 'bg-rose-500/10 text-rose-300 border-rose-500/30', error: 'bg-amber-500/10 text-amber-300 border-amber-500/30',
+        unknown: 'bg-slate-800 text-slate-300 border-slate-700', testing: 'bg-blue-500/10 text-blue-300 border-blue-500/30 animate-pulse'
+      };
+      const tag = { ok: '✓ dùng được', quota: '⛔ hết lượt', invalid: '✕ key sai', error: '⚠ lỗi', unknown: 'chưa kiểm tra', testing: '… đang kiểm tra' };
+      const list = $('keyChips'); list.style.display = keysEditing ? 'none' : 'flex'; list.innerHTML = '';
+      let ok = 0, quota = 0, invalid = 0;
+      const mk = (txt, fn, title, c) => { const b = document.createElement('button'); b.textContent = txt; b.title = title; b.onclick = fn; b.className = `px-1.5 py-0.5 rounded text-[11px] font-semibold ${c}`; return b; };
+      keys.forEach((k, i) => {
+        let st = keyState(k); const bad = !KEY_RE.test(k); if (bad) st = 'invalid';
+        if (st === 'quota') quota++; else if (st === 'invalid') invalid++; else ok++;
+        const reason = bad ? 'Sai định dạng key (thường bắt đầu bằng AIza… hoặc AQ.…)' : (keyStatus[k] && keyStatus[k].msg) || ({ unknown: 'Chưa kiểm tra', ok: 'Hoạt động tốt', testing: 'Đang kiểm tra' }[st] || '');
+        const shown = bad || revealAll || revealed.has(k);
+        const r = document.createElement('div');
+        r.className = `flex items-center gap-2 rounded-lg border px-2.5 py-1 ${cls[st]}${k === apiKeys[currentKeyIdx] ? ' ring-1 ring-white/30' : ''}`; r.title = reason;
+        const n = document.createElement('span'); n.className = 'text-[10px] font-bold shrink-0'; n.textContent = `#${i + 1}`;
+        const t = document.createElement('span'); t.className = 'flex-1 min-w-0 truncate font-mono text-[11px] text-slate-100'; t.textContent = shown ? k : maskKey(k);
+        const g = document.createElement('span'); g.className = 'text-[10px] shrink-0'; g.textContent = tag[st];
+        r.append(n, t, g);
+        if (!bad) r.appendChild(mk(shown ? '🙈' : '👁', () => { if (revealed.has(k)) revealed.delete(k); else revealed.add(k); renderKeyChips(); }, shown ? 'Ẩn key này' : 'Hiện key này', 'bg-black/20 hover:bg-black/40'));
+        r.appendChild(mk('✕', () => removeKey(k), 'Xóa key này', 'bg-black/20 hover:bg-rose-600 text-white'));
+        list.appendChild(r);
+      });
+      const parts = [`${ok} dùng được`];
+      if (quota) parts.push(`${quota} hết lượt`);
+      if (invalid) parts.push(`${invalid} key sai`);
+      const bc = ok === 0 ? 'text-rose-300 border-rose-500/40 bg-rose-500/10' : (ok <= 2 && quota + invalid > 0) ? 'text-amber-300 border-amber-500/40 bg-amber-500/10' : 'text-emerald-300 border-emerald-500/30 bg-emerald-500/10';
+      badge.className = `px-2 py-0.5 rounded border text-[11px] font-semibold normal-case tracking-normal ${bc}`;
+      badge.textContent = (ok === 0 ? '⚠ Hết key dùng được · ' : '● ') + parts.join(' · ');
+      badge.style.display = 'inline-block';
+    }
+    function inputKeys() {
+      const ta = $('directKeyInput');
+      return ta ? ta.value.split(/[\s,]+/).map(k => k.trim()).filter(Boolean) : apiKeys.slice();
+    }
+    async function checkOneKey(k, deep) {
+      keyStatus[k] = { state: 'testing', msg: '', ts: Date.now() }; renderKeyChips();
+      try {
+        const sel = $('selectModel').value, model = sel === 'auto' ? autoChain()[0] : sel;
+        const res = deep
+          ? await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${k}`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ contents: [{ parts: [{ text: 'ping' }] }], generationConfig: { maxOutputTokens: 1 } }) })
+          : await fetch(`https://generativelanguage.googleapis.com/v1beta/models?pageSize=1&key=${k}`);
+        if (res.ok) markKey(k, 'ok', deep ? 'Hoạt động tốt' : 'Key hợp lệ (chưa kiểm tra hạn mức)');
+        else {
+          let msg = `HTTP ${res.status}`; try { msg = (await res.json()).error?.message || msg; } catch (_) {}
+          const e = new Error(msg); e.status = res.status;
+          markKey(k, classifyErr(e), friendlyError(e));
+        }
+      } catch (e) { markKey(k, 'error', friendlyError(e)); }
+    }
+    async function recheckKeys() {
+      const keys = inputKeys().filter(k => KEY_RE.test(k));
+      if (!keys.length) { toast('Chưa có API key hợp lệ để kiểm tra.'); return; }
+      const btn = $('btnRecheck'); btn.disabled = true; btn.classList.add('opacity-50');
+      for (const k of keys) await checkOneKey(k, true);
+      btn.disabled = false; btn.classList.remove('opacity-50');
+      const dead = keys.filter(isDead).length;
+      toast(`Kiểm tra xong: ${keys.length - dead} dùng được, ${dead} lỗi.`, dead ? 'warn' : 'success');
+    }
+    // Tự nhận diện khi dán / gõ key vào ô danh sách
+    let inputTimer = null, checking = false, again = false;
+    function onKeyInput() {
+      if (!session) { const raw = ($('directKeyInput').value || '').split(/[\s,]+/).filter(Boolean); if (raw.length > LIMITS.keys) { $('directKeyInput').value = raw[0]; needLogin('Chế độ khách chỉ dùng 1 API key.'); } }
+      renderKeyChips(); clearTimeout(inputTimer); inputTimer = setTimeout(autoCheckKeys, 900); }
+    async function autoCheckKeys() {
+      if (checking) { again = true; return; }
+      checking = true;
+      try {
+        do {
+          again = false;
+          const keys = inputKeys();
+          if (!keys.length) break;
+          for (const k of keys.filter(k => KEY_RE.test(k) && keyState(k) === 'unknown')) await checkOneKey(k);
+          if (keys.every(k => KEY_RE.test(k)) && JSON.stringify(keys) !== JSON.stringify(apiKeys)) {
+            saveKeysDirectly();
+            const ok = keys.filter(k => !isDead(k)).length;
+            toast(`Đã nhận ${keys.length} key: ${ok} dùng được, ${keys.length - ok} lỗi. Đã tự động lưu.`, ok ? 'success' : 'warn');
+          }
+        } while (again);
+        const all = inputKeys();
+        if (all.length && all.every(k => KEY_RE.test(k) && keyState(k) === 'ok')) { keysEditing = false; renderKeyChips(); }
+      } finally { checking = false; }
+    }
+    window.addEventListener('DOMContentLoaded', () => { const ta = $('directKeyInput'); if (ta) ta.addEventListener('input', onKeyInput); });
+    setInterval(() => { try { renderKeyChips(); } catch (e) {} }, 30000);
+
+    // ===== CHẾ ĐỘ KHÁCH (không đăng nhập) =====
+    const LIMITS = { keys: 1, images: 2, pdfPages: 2 };
+    function loadGuestKey() {
+      let k = [];
+      try { k = JSON.parse(localStorage.getItem('gemini_guest_key') || '[]').slice(0, LIMITS.keys); } catch (e) {}
+      apiKeys = k; currentKeyIdx = 0; updateKeyUI();
+      if (apiKeys.length) fetchOnlineModels();
+    }
+    function needLogin(msg) {
+      openModal('Cần đăng nhập', `<div class="flex flex-col gap-4 text-center">
+        <div class="mx-auto h-12 w-12 rounded-2xl bg-amber-400/10 border border-amber-400/30 flex items-center justify-center text-2xl">🔒</div>
+        <p class="text-sm font-semibold text-slate-100">${esc(msg)}</p>
+        <p class="text-xs text-slate-400">Chế độ khách giới hạn: ${LIMITS.keys} API key · ${LIMITS.images} ảnh · PDF ${LIMITS.pdfPages} trang. Hãy đăng nhập (hoặc đăng ký, chờ quản trị duyệt) để chuyển nhiều hơn.</p>
+        <div class="flex flex-col gap-2">${GOOGLE_BTN}
+          <div class="flex gap-2">
+            <button onclick="openAuth('login')" class="flex-1 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-500 hover:from-blue-500 hover:to-indigo-400 text-white text-xs font-bold shadow transition">Đăng nhập</button>
+            <button onclick="openAuth('register')" class="flex-1 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-bold transition">Đăng ký</button>
+          </div>
+          <button onclick="closeModal()" class="text-xs text-slate-400 hover:text-slate-200 transition">Để sau</button>
+        </div></div>`);
+    }
+
+    // ===== Ô MẬT KHẨU CÓ NÚT ẨN/HIỆN =====
+    function pwInput(id, ph, auto, extra) {
+      return `<div class="relative w-full"><input id="${id}" type="password" class="${INP} pr-10" placeholder="${ph}" autocomplete="${auto}" ${extra || ''} />
+        <button type="button" tabindex="-1" onclick="toggleEye('${id}', this)" title="Hiện / ẩn mật khẩu" class="absolute right-2 top-1/2 -translate-y-1/2 px-1 text-sm text-slate-400 hover:text-slate-200">👁</button></div>`;
+    }
+    function toggleEye(id, btn) {
+      const el = $(id), show = el.type === 'password';
+      el.type = show ? 'text' : 'password'; btn.textContent = show ? '🙈' : '👁'; el.focus();
+    }
+
+    // --- Quản trị ---
+    function openAdmin() {
+      if (!session || session.role !== 'admin') {
+        pendingAdmin = true; openAuth('login');
+        $('auUser').value = ADMIN_USER; $('auPass').focus();
+        $('auMsg').textContent = 'Đăng nhập tài khoản quản trị để mở cài đặt.';
+        return;
+      }
+      openModal('⚙ Cài đặt quản trị', `
+        <div class="flex flex-col gap-5">
+          <section>
+            <div class="flex items-center justify-between mb-2"><h3 class="text-xs font-bold text-slate-300">Người dùng đã đăng ký</h3><span id="adCount" class="text-[10px] text-slate-500"></span></div>
+            <div id="adUsers" class="flex flex-col gap-2"></div>
+          </section>
+          <section class="border-t border-slate-800 pt-4">
+            <h3 class="text-xs font-bold text-slate-300 mb-2">Đổi mật khẩu quản trị</h3>
+            <div class="flex flex-col sm:flex-row gap-2">
+              ${pwInput('adPw1', 'Mật khẩu mới', 'new-password')}
+              ${pwInput('adPw2', 'Nhập lại', 'new-password')}
+              <button onclick="changeAdminPw()" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shrink-0">Lưu</button>
+            </div>
+          </section>
+        </div>`, true);
+      userListRef = db.ref('ocr_users');
+      userListRef.on('value', renderUsers);
+    }
+    function renderUsers(snap) {
+      const box = $('adUsers'); if (!box) return;
+      const data = snap.val() || {};
+      const order = { pending: 0, approved: 1 };
+      const list = Object.entries(data).sort((a, b) => (order[a[1].status] ?? 2) - (order[b[1].status] ?? 2) || (b[1].createdAt || 0) - (a[1].createdAt || 0));
+      $('adCount').textContent = `${list.length} tài khoản · ${list.filter(x => x[1].status === 'pending').length} chờ duyệt`;
+      if (!list.length) { box.innerHTML = '<p class="text-xs text-slate-500 py-3 text-center">Chưa có ai đăng ký.</p>'; return; }
+      const badge = { pending: ['Chờ duyệt', 'bg-amber-500/10 text-amber-300 border-amber-500/30'], approved: ['Đã duyệt', 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'] };
+      const b = (label, fn, cls) => `<button onclick="${fn}" class="px-2 py-1 rounded-lg text-[11px] font-semibold ${cls || 'bg-slate-800 hover:bg-slate-700 text-slate-200'}">${label}</button>`;
+      const ok = 'bg-emerald-600 hover:bg-emerald-500 text-white';
+      box.innerHTML = list.map(([u, r]) => {
+        const bd = badge[r.status] || ['Đã khóa', 'bg-rose-500/10 text-rose-300 border-rose-500/30'];
+        const acts = (r.status === 'pending' ? b('✓ Duyệt', `setStatus('${u}','approved')`, ok) + b('Từ chối', `setStatus('${u}','rejected')`)
+          : r.status === 'approved' ? b('Khóa', `setStatus('${u}','rejected')`) : b('Duyệt lại', `setStatus('${u}','approved')`, ok))
+          + (r.provider === 'google' ? '' : b('🔑 Đổi MK', `togglePw('${u}')`)) + b('Xóa', `delUser('${u}')`, 'bg-rose-600/80 hover:bg-rose-500 text-white');
+        return `<div class="flex flex-wrap items-center gap-2 bg-slate-950/60 border border-slate-800 rounded-xl px-3 py-2">
+          <div class="flex-1 min-w-[140px]"><p class="text-xs font-semibold text-slate-200">${esc(r.name || u)} <span class="text-slate-500 font-normal">${r.provider === 'google' ? esc(r.email || '') + ' · Google' : '@' + u}</span></p><p class="text-[10px] text-slate-500">${r.createdAt ? new Date(r.createdAt).toLocaleString('vi-VN') : ''}</p></div>
+          <span class="px-2 py-0.5 rounded-full border text-[10px] ${bd[1]}">${bd[0]}</span>
+          <div class="flex flex-wrap gap-1">${acts}</div>
+          <div id="pw_${u}" class="w-full gap-2" style="display:none">${pwInput('pwi_' + u, 'Mật khẩu mới cho ' + u, 'new-password')}<button onclick="saveUserPw('${u}')" class="px-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shrink-0">Lưu</button></div>
+        </div>`;
+      }).join('');
+    }
+    function setStatus(u, st) { db.ref('ocr_users/' + u + '/status').set(st).then(() => toast('Đã cập nhật.', 'success')).catch(e => toast(e.message, 'error')); }
+    function delUser(u) { if (confirm('Xóa tài khoản "' + u + '"?')) db.ref('ocr_users/' + u).remove().then(() => toast('Đã xóa.', 'success')); }
+    function togglePw(u) { const el = $('pw_' + u); const open = el.style.display === 'flex'; el.style.display = open ? 'none' : 'flex'; if (!open) $('pwi_' + u).focus(); }
+    async function saveUserPw(u) {
+      const v = $('pwi_' + u).value;
+      if (v.length < 6) { toast('Mật khẩu tối thiểu 6 ký tự.'); return; }
+      const salt = newSalt();
+      await db.ref('ocr_users/' + u).update({ salt, hash: await hashPw(salt, v) });
+      $('pwi_' + u).value = ''; $('pw_' + u).style.display = 'none';
+      toast('Đã đổi mật khẩu cho ' + u, 'success');
+    }
+    async function changeAdminPw() {
+      const a = $('adPw1').value, b = $('adPw2').value;
+      if (a.length < 6) { toast('Mật khẩu tối thiểu 6 ký tự.'); return; }
+      if (a !== b) { toast('Mật khẩu nhập lại không khớp.'); return; }
+      const salt = newSalt();
+      await db.ref('ocr_admin').set({ salt, hash: await hashPw(salt, a) });
+      $('adPw1').value = $('adPw2').value = '';
+      toast('Đã đổi mật khẩu quản trị.', 'success');
+    }
+
+    // ===== NHẬN DIỆN & CẮT HÌNH VẼ CHUẨN HƠN =====
+    const FIG_TAG_RE = /\[\s*(?:IMAGE|HÌNH|HINH|FIGURE|BOX)\s*[:：=]?\s*\[?\s*(-?\d+(?:[.,]\d+)?)\s*[,;\s]\s*(-?\d+(?:[.,]\d+)?)\s*[,;\s]\s*(-?\d+(?:[.,]\d+)?)\s*[,;\s]\s*(-?\d+(?:[.,]\d+)?)\s*\]?\s*\]/gi;
+    const DETECT_PROMPT = 'Phát hiện tất cả HÌNH VẼ trong trang này: hình hình học, đồ thị hàm số, sơ đồ, hình minh họa. KHÔNG tính văn bản, công thức hay bảng số liệu. Mỗi hình có một khung bao sát toàn bộ hình, gồm cả trục tọa độ, nhãn điểm (A, B, C...), số trên trục và chú thích nằm sát hình. Trả về JSON thuần: [{"box_2d":[ymin,xmin,ymax,xmax],"label":"..."}] với tọa độ là số nguyên 0 đến 1000 (gốc ở góc trên bên trái), sắp xếp từ trên xuống dưới rồi trái sang phải. Nếu không có hình, trả về [].';
+
+    // Chuẩn hóa về [ymin,xmin,ymax,xmax] số nguyên 0–1000. Tự nhận ra thang 0–1, phần trăm, hoặc điểm ảnh.
+    function normalizeBox(v, w, h, strict) {
+      if (!Array.isArray(v) || v.length !== 4 || v.some(n => !isFinite(n))) return null;
+      if (!strict) {
+        const mx = Math.max(...v);
+        if (mx <= 1.0001) v = v.map(n => n * 1000);
+        else if (mx <= 100) v = v.map(n => n * 10);
+        else if (mx > 1000) v = [v[0] / h * 1000, v[1] / w * 1000, v[2] / h * 1000, v[3] / w * 1000];
+      }
+      let [y1, x1, y2, x2] = v.map(n => Math.min(1000, Math.max(0, n)));
+      if (y1 > y2) [y1, y2] = [y2, y1];
+      if (x1 > x2) [x1, x2] = [x2, x1];
+      if (y2 - y1 < 25 || x2 - x1 < 25) return null;
+      return [y1, x1, y2, x2].map(Math.round);
+    }
+    function boxIou(a, b) {
+      const iy = Math.max(0, Math.min(a[2], b[2]) - Math.max(a[0], b[0])), ix = Math.max(0, Math.min(a[3], b[3]) - Math.max(a[1], b[1]));
+      const inter = iy * ix, uni = (a[2] - a[0]) * (a[3] - a[1]) + (b[2] - b[0]) * (b[3] - b[1]) - inter;
+      return uni > 0 ? inter / uni : 0;
+    }
+    function matchBoxes(tags, det) {
+      const used = new Set();
+      const out = tags.map(t => {
+        if (!t) return undefined;
+        let best = 0, bi = -1;
+        det.forEach((d, j) => { if (used.has(j)) return; const v = boxIou(t, d); if (v > best) { best = v; bi = j; } });
+        if (bi >= 0 && best > 0.2) { used.add(bi); return det[bi]; }
+        return t;
+      });
+      return out.map(r => {
+        if (r !== undefined) return r;
+        const j = det.findIndex((d, k) => !used.has(k));
+        if (j < 0) return null;
+        used.add(j); return det[j];
+      });
+    }
+    async function detectFigureBoxes(b64, modelSel) {
+      const chain = autoChain();
+      const model = modelSel === 'auto' ? chain[Math.min(autoLevel, chain.length - 1)] : modelSel;
+      for (let t = 0; t < Math.min(2, Math.max(1, apiKeys.length)); t++) {
+        const key = getActiveKey(); if (!key) return null;
+        try {
+          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ parts: [{ inline_data: { mime_type: 'image/png', data: b64 } }, { text: DETECT_PROMPT }] }], generationConfig: { temperature: 0, responseMimeType: 'application/json' } })
+          });
+          if (!res.ok) { const e = new Error('HTTP ' + res.status); e.status = res.status; throw e; }
+          const d = await res.json();
+          const txt = (d.candidates?.[0]?.content?.parts || []).map(x => x.text || '').join('').replace(/```json|```/g, '').trim();
+          const arr = JSON.parse(txt);
+          return (Array.isArray(arr) ? arr : []).map(o => normalizeBox((o.box_2d || o.box || []).map(Number), 1, 1, true)).filter(Boolean).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+        } catch (e) { if (e.status) markKey(key, classifyErr(e), friendlyError(e)); rotateKey(); }
+      }
+      return null;
+    }
+    // Chuẩn hóa mọi thẻ [IMAGE: ...] của một trang; dò lại bằng box_2d nếu bật
+    async function processFigures(text, b64, canvas, modelSel) {
+      const tags = [...text.matchAll(FIG_TAG_RE)];
+      if (!tags.length) return text.replace(/\[\s*IMAGE[^\]]*\]/gi, '');
+      const w = canvas.width, h = canvas.height;
+      const boxes = tags.map(t => normalizeBox([t[1], t[2], t[3], t[4]].map(x => parseFloat(x.replace(',', '.'))), w, h));
+      let det = null;
+      if ($('optFigDetect').checked) { log(`Dò chính xác ${tags.length} hình vẽ…`); det = await detectFigureBoxes(b64, modelSel); }
+      const finalBoxes = det && det.length ? matchBoxes(boxes, det) : boxes;
+      let k = 0;
+      const out = text.replace(FIG_TAG_RE, () => { const b = finalBoxes[k++]; return b ? `[IMAGE: ${b.join(', ')}]` : ''; });
+      const ok = finalBoxes.filter(Boolean).length;
+      if (ok < tags.length) log(`Có ${tags.length - ok} hình không xác định được vị trí, đã bỏ qua.`, 'warn');
+      return out.replace(/\[\s*IMAGE(?![: ]+\d+, \d+, \d+, \d+\])[^\]]*\]/gi, '');
+    }
+    window.addEventListener('DOMContentLoaded', () => {
+      const radios = [...document.querySelectorAll('input[name="math_format"]')];
+      try { const f = localStorage.getItem('ocr_math_format'); const r = radios.find(x => x.value === f); if (r) r.checked = true; } catch (e) {}
+      radios.forEach(r => r.addEventListener('change', () => { try { localStorage.setItem('ocr_math_format', r.value); } catch (e) {} }));
+    });
+    window.addEventListener('DOMContentLoaded', () => {
+      const oc = $('optContinuous'), sb = $('selBatch');
+      try { const a = localStorage.getItem('ocr_continuous'); if (a !== null) oc.checked = a === '1'; const b = localStorage.getItem('ocr_batch'); if (b) sb.value = b; } catch (e) {}
+      oc.addEventListener('change', () => { try { localStorage.setItem('ocr_continuous', oc.checked ? '1' : '0'); } catch (e) {} });
+      sb.addEventListener('change', () => { try { localStorage.setItem('ocr_batch', sb.value); } catch (e) {} });
+    });
+    window.addEventListener('DOMContentLoaded', () => {
+      const tg = $('optFigDetect');
+      try { const v = localStorage.getItem('ocr_fig_detect'); if (v !== null) tg.checked = v === '1'; } catch (e) {}
+      tg.addEventListener('change', () => { try { localStorage.setItem('ocr_fig_detect', tg.checked ? '1' : '0'); } catch (e) {} });
+    });
+
+    // --- NỘI DUNG BỎ QUA & ĐẦU/CHÂN TRANG ---
+    function getIgnoreList() { return ($('ignoreInput').value || '').split('\n').map(x => x.trim()).filter(Boolean); }
+    function buildSystemPrompt() {
+      const extra = [];
+      if (!$('optHeaderFooter').checked) extra.push('BỎ QUA hoàn toàn tiêu đề đầu trang (header), chân trang (footer) và số trang; không chép chúng vào kết quả.');
+      const ig = getIgnoreList();
+      if (ig.length) extra.push('KHÔNG chép các nội dung sau nếu xuất hiện trên trang (bỏ qua hoàn toàn):\n' + ig.map(x => '- ' + x).join('\n'));
+      return SYSTEM_PROMPT + (extra.length ? '\n' + extra.map((e, i) => `${7 + i}. ${e}`).join('\n') : '');
+    }
+    function applyIgnore(text) {
+      const ig = getIgnoreList();
+      if (!ig.length) return text;
+      const res = ig.map(x => new RegExp(x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+'), 'gi'));
+      return text.split('\n').map(l => {
+        let o = l;
+        res.forEach(r => { o = o.replace(r, ''); });
+        if (o === l) return l;
+        if (!o.replace(/[\s\-–—.,:;|*]/g, '')) return null;
+        return o.replace(/\s{2,}/g, ' ').trim();
+      }).filter(l => l !== null).join('\n');
+    }
+    window.addEventListener('DOMContentLoaded', () => {
+      const ta = $('ignoreInput'), tg = $('optHeaderFooter');
+      const upd = () => { $('ignoreCount').textContent = getIgnoreList().length + ' mục'; };
+      try {
+        ta.value = localStorage.getItem('ocr_ignore_text') || '';
+        const hf = localStorage.getItem('ocr_include_hf'); if (hf !== null) tg.checked = hf === '1';
+      } catch (e) {}
+      upd();
+      ta.addEventListener('input', () => { upd(); try { localStorage.setItem('ocr_ignore_text', ta.value); } catch (e) {} });
+      tg.addEventListener('change', () => { try { localStorage.setItem('ocr_include_hf', tg.checked ? '1' : '0'); } catch (e) {} });
+    });
+
     // --- 4. BẮT ĐẦU CHẠY BATCH OCR (có phạm vi trang, xuất một phần khi lỗi) ---
     async function renderPdfPage(p) {
       const page = await pdfDocGlobal.getPage(p);
@@ -580,8 +1345,61 @@ QUY TẮC CỰC KỲ QUAN TRỌNG:
       });
     }
 
-    async function startBatchOCR() {
-      if (!selectedFileBlob) { toast('Vui lòng chọn file PDF hoặc dán ảnh trước.'); return; }
+    // ===== TIẾT KIỆM API: gộp trang mỗi lượt gọi + dùng lại kết quả đã có =====
+    const ocrCache = new Map();
+    function cacheKey(b64, sig) { const m = b64.length >> 1; return `${sig}|${b64.length}|${b64.slice(200, 260)}${b64.slice(m, m + 60)}${b64.slice(-60)}`; }
+    function splitPages(text, n) {
+      const re = /^[ \t]*<<<\s*TRANG\s*(\d+)\s*>>>[ \t]*$/gim;
+      const marks = [...text.matchAll(re)], out = Array(n).fill(null);
+      marks.forEach((m, i) => {
+        const k = parseInt(m[1], 10) - 1;
+        const body = text.slice(m.index + m[0].length, i + 1 < marks.length ? marks[i + 1].index : text.length).trim();
+        if (k >= 0 && k < n && body) out[k] = body;
+      });
+      return out;
+    }
+    async function ocrBatch(items, modelSel) {
+      const sig = $('optHeaderFooter').checked ? 'h1' : 'h0';
+      const texts = items.map(it => ocrCache.has(cacheKey(it.b64, sig)) ? ocrCache.get(cacheKey(it.b64, sig)) : null);
+      const need = items.map((_, k) => k).filter(k => texts[k] === null);
+      if (need.length < items.length) log(`Dùng lại kết quả đã có cho ${items.length - need.length} trang (không tốn API).`, 'success');
+      let err = null;
+      const single = async (k) => { try { texts[k] = await callGeminiSinglePageWithRetry(items[k].b64, modelSel); } catch (e) { err = e; } };
+      if (need.length === 1) await single(need[0]);
+      else if (need.length > 1) {
+        try {
+          const res = await callGeminiSinglePageWithRetry(need.map(k => items[k].b64), modelSel);
+          const parts = splitPages(res, need.length);
+          need.forEach((k, j) => { if (parts[j]) texts[k] = parts[j]; });
+          if (parts.some(x => !x)) log('Một số trang chưa tách được trong lượt gộp, sẽ gọi riêng các trang đó.', 'warn');
+        } catch (e) { err = (e.empty ? null : e); if (e.empty) log('Lượt gộp không có kết quả, thử từng trang.', 'warn'); }
+        if (!err) for (const k of need) { if (texts[k] === null) { await single(k); if (err) break; } }
+      }
+      need.forEach(k => { if (texts[k] !== null) ocrCache.set(cacheKey(items[k].b64, sig), texts[k]); });
+      return { texts, err };
+    }
+
+    let resumeCtx = null;
+    function resumeRun(skip) {
+      if (ocrRunning || !resumeCtx) return;
+      const c = resumeCtx;
+      if (isPdfFile) {
+        const f = c.stoppedAt + (skip ? 1 : 0);
+        if (f > c.to) { toast('Không còn trang nào để chạy tiếp.'); return; }
+        $('pageFrom').value = f; $('pageTo').value = c.to;
+      } else if (skip) {
+        const it = imageQueue.find(x => x.id === c.itemId);
+        if (it) { it.status = 'skip'; renderQueue(); }
+      }
+      startBatchOCR(true);
+    }
+    async function startBatchOCR(resume) {
+      if (!session) {
+        if (isPdfFile && pdfDocGlobal && pdfDocGlobal.numPages > LIMITS.pdfPages) { needLogin(`File PDF có ${pdfDocGlobal.numPages} trang. Chế độ khách chỉ chuyển tối đa ${LIMITS.pdfPages} trang.`); return; }
+        if (!isPdfFile && imageQueue.length > LIMITS.images) { needLogin(`Hàng đợi có ${imageQueue.length} ảnh. Chế độ khách chỉ chuyển tối đa ${LIMITS.images} ảnh.`); return; }
+        if (inputKeys().length > LIMITS.keys) { needLogin('Chế độ khách chỉ dùng 1 API key.'); return; }
+      }
+      if (!selectedFileBlob && !imageQueue.length) { toast('Vui lòng chọn file PDF hoặc dán ảnh trước.'); return; }
       if (!getActiveKey()) { toast('Vui lòng nhập ít nhất một Gemini API Key.'); $('directKeyInput').focus(); return; }
 
       let from = 1, to = 1;
@@ -592,7 +1410,9 @@ QUY TẮC CỰC KỲ QUAN TRỌNG:
         if (from > to) { toast('"Từ trang" phải nhỏ hơn hoặc bằng "đến trang".'); return; }
         $('pageFrom').value = from; $('pageTo').value = to;
       }
-      const total = isPdfFile ? to - from + 1 : 1;
+      const todo = isPdfFile ? null : imageQueue.map((x, idx) => idx).filter(idx => !resume || !['done', 'skip'].includes(imageQueue[idx].status));
+      const total = isPdfFile ? to - from + 1 : todo.length;
+      if (!total) { toast('Không còn ảnh nào cần chạy tiếp.'); return; }
       const model = $('selectModel').value;
       const fmt = document.querySelector('input[name="math_format"]:checked').value;
       const pagesData = [];
@@ -604,50 +1424,77 @@ QUY TẮC CỰC KỲ QUAN TRỌNG:
       $('runDot').className = 'h-2 w-2 rounded-full bg-emerald-400 animate-pulse';
       $('resultBanner').className = 'hidden';
       $('chipFail').textContent = '0';
-      stopRequested = false;
+      stopRequested = false; autoLevel = 0; ocrRunning = true;
+      resumeCtx = null;
+      imageQueue.forEach(x => { if (!resume || x.status === 'fail') x.status = ''; }); renderQueue();
       setProgress(0, total);
-      log(isPdfFile ? `Bắt đầu OCR trang ${from}–${to} (${total} trang) · ${model}` : `Bắt đầu OCR ảnh · ${model}`);
+      log(isPdfFile ? `Bắt đầu OCR trang ${from}–${to} (${total} trang) · ${model === 'auto' ? 'tự động (2.5 → cao dần)' : model}` : `Bắt đầu OCR ${total} ảnh · ${model === 'auto' ? 'tự động (2.5 → cao dần)' : model}`);
 
       try {
-        for (let i = 0; i < total; i++) {
-          const p = from + i;
-          if (stopRequested) { stoppedAt = p; reason = 'bạn đã dừng'; break; }
+        const B = Math.max(1, Math.min(6, parseInt($('selBatch').value) || 1));
+        if (B > 1) log(`Gộp tối đa ${B} trang mỗi lượt gọi để tiết kiệm API.`);
+        const pageOf = (i) => isPdfFile ? from + i : todo[i] + 1;
+        const uLabel = isPdfFile ? 'Trang' : 'Ảnh';
+        for (let bi = 0; bi < total; bi += B) {
+          const idxs = []; for (let i = bi; i < Math.min(bi + B, total); i++) idxs.push(i);
+          if (stopRequested) { stoppedAt = pageOf(idxs[0]); reason = 'bạn đã dừng'; break; }
+          const items = [];
           try {
-            let canvas, b64;
-            if (isPdfFile) { canvas = await renderPdfPage(p); b64 = canvas.toDataURL('image/png').split(',')[1]; }
-            else { b64 = imageBase64Global; canvas = await imageToCanvas(b64); }
-            setProgress(i, total, `Trang ${p} · đang nhận dạng…`);
-            const raw = await callGeminiSinglePageWithRetry(b64, model);
-            pagesData.push({ pageNum: p, canvas, text: cleanAIText(raw) });
-            setProgress(i + 1, total);
-            log(`Trang ${p} hoàn tất`, 'success');
+            for (const i of idxs) {
+              const qi = isPdfFile ? -1 : todo[i], p = pageOf(i);
+              let canvas, b64;
+              if (isPdfFile) { canvas = await renderPdfPage(p); b64 = canvas.toDataURL('image/png').split(',')[1]; }
+              else { b64 = imageQueue[qi].base64; canvas = await imageToCanvas(b64); }
+              items.push({ qi, p, canvas, b64 });
+            }
           } catch (err) {
-            stoppedAt = p; reason = err.message;
-            $('chipFail').textContent = '1';
-            log(`Trang ${p} thất bại: ${reason}`, 'error');
-            break;
+            stoppedAt = pageOf(idxs[0]); reason = err.message; $('chipFail').textContent = '1';
+            log(`${uLabel} ${stoppedAt} thất bại: ${reason}`, 'error'); break;
           }
+          setProgress(pagesData.length, total, `${uLabel} ${items[0].p}${items.length > 1 ? '–' + items[items.length - 1].p : ''} · đang nhận dạng…`);
+          const { texts, err } = await ocrBatch(items, model);
+          let failed = false;
+          for (let k = 0; k < items.length; k++) {
+            const it = items[k];
+            if (texts[k] === null) {
+              stoppedAt = it.p; reason = err ? err.message : 'AI không trả về nội dung';
+              if (!isPdfFile && imageQueue[it.qi]) { imageQueue[it.qi].status = 'fail'; renderQueue(); }
+              $('chipFail').textContent = '1'; log(`${uLabel} ${it.p} thất bại: ${reason}`, 'error'); failed = true; break;
+            }
+            let pageText = applyIgnore(cleanAIText(texts[k]));
+            pageText = await processFigures(pageText, it.b64, it.canvas, model);
+            pagesData.push({ pageNum: it.p, canvas: it.canvas, text: pageText });
+            if (!isPdfFile) { imageQueue[it.qi].status = 'done'; renderQueue(); }
+            setProgress(pagesData.length, total);
+            log(`${uLabel} ${it.p} hoàn tất`, 'success');
+          }
+          if (failed) break;
         }
 
         if (pagesData.length) {
           log(`Đang xuất ${pagesData.length} trang ra DOCX [${fmt.toUpperCase()}]…`);
-          await buildAndDownloadDocxHTML(pagesData, fmt);
+          if (fmt === 'tex') await buildAndDownloadTex(pagesData); else await buildAndDownloadDocxHTML(pagesData, fmt);
         }
 
         const n = pagesData.length;
+        const unit = isPdfFile ? 'trang' : 'ảnh';
         if (stoppedAt === null) {
-          showBanner('success', `Hoàn tất: đã xuất ${n} trang${isPdfFile ? ` (${from}–${to})` : ''}.`);
-        } else if (n > 0) {
-          if (isPdfFile) $('pageFrom').value = stoppedAt;
-          showBanner('warn', `Đã xuất ${n} trang (${pagesData[0].pageNum}–${pagesData[n - 1].pageNum}). Dừng ở trang ${stoppedAt}: ${reason}.` + (isPdfFile ? ` Ô "Từ trang" đã đặt sẵn = ${stoppedAt}.` : ''),
-            'Nhập API key mới', () => { $('directKeyInput').scrollIntoView({ behavior: 'smooth', block: 'center' }); $('directKeyInput').focus(); });
+          showBanner('success', `Hoàn tất: đã xuất ${n} ${unit}${isPdfFile ? ` (${from}–${to})` : ''}.`);
+          resumeCtx = null;
         } else {
-          showBanner('error', `Chưa xuất được trang nào: ${reason}.`, 'Nhập API key mới', () => { $('directKeyInput').scrollIntoView({ behavior: 'smooth', block: 'center' }); $('directKeyInput').focus(); });
+          const userStopped = reason === 'bạn đã dừng';
+          resumeCtx = { stoppedAt, to, userStopped, itemId: isPdfFile ? null : (imageQueue[stoppedAt - 1] || {}).id };
+          if (isPdfFile) $('pageFrom').value = stoppedAt;
+          const acts = [{ label: `▶ Chạy tiếp từ ${unit} ${stoppedAt}`, fn: () => resumeRun(false), primary: true }];
+          if (!userStopped) acts.push({ label: `⤼ Bỏ qua ${unit} ${stoppedAt}`, fn: () => resumeRun(true) });
+          acts.push({ label: 'Nhập API key mới', fn: () => { $('directKeyInput').scrollIntoView({ behavior: 'smooth', block: 'center' }); $('directKeyInput').focus(); } });
+          showBanner(n > 0 ? 'warn' : 'error', `${n > 0 ? `Đã xuất ${n} ${unit}. ` : `Chưa xuất được ${unit} nào. `}Dừng ở ${unit} ${stoppedAt}: ${reason}.`, acts);
         }
       } catch (err) {
         log(`Lỗi không mong muốn: ${err.message}`, 'error');
         showBanner('error', err.message);
       } finally {
+        ocrRunning = false; renderQueue();
         btnRun.disabled = false; btnRun.classList.remove('opacity-50', 'cursor-not-allowed');
         $('btnStop').classList.add('hidden');
         $('runDot').className = 'h-2 w-2 rounded-full bg-slate-600';
@@ -656,31 +1503,32 @@ QUY TẮC CỰC KỲ QUAN TRỌNG:
       }
     }
 
-    async function callGeminiSinglePageWithRetry(base64Data, model) {
+    const NO_THINK_RE = /^gemini-2\.5-flash/;
+    function genCfg(model) { return { temperature: 0.1, maxOutputTokens: 32768, ...(NO_THINK_RE.test(model) ? { thinkingConfig: { thinkingBudget: 0 } } : {}) }; }
+    function batchRule(n) {
+      return `\nBạn nhận ${n} ảnh là ${n} trang liên tiếp của cùng một tài liệu, theo đúng thứ tự ảnh 1 đến ${n}. Chép lần lượt từng trang. TRƯỚC nội dung mỗi trang, viết đúng một dòng riêng: <<<TRANG k>>> (k là số thứ tự ảnh, bắt đầu từ 1). Tọa độ [IMAGE: ...] của một hình tính theo CHÍNH ẢNH chứa hình đó. Nếu một câu hỏi bị cắt giữa hai trang thì vẫn chép đúng phần có trên từng trang, không tự ghép, không bỏ sót trang nào.`;
+    }
+    async function callGeminiWithModel(base64Data, model, onePass) {
       let lastErr = null;
-      let attempts = 0;
-      let maxAttempts = Math.max(2, apiKeys.length * 2);
+      let attempts = 0, emptyTries = 0;
+      let maxAttempts = onePass ? Math.max(1, apiKeys.length) : Math.max(2, apiKeys.length);
 
       while (attempts < maxAttempts) {
+        if (apiKeys.length > 1 && isDead(apiKeys[currentKeyIdx])) rotateKey();
         const key = getActiveKey();
         try {
           const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
-          const payload = {
-            contents: [{
-              parts: [
-                { inline_data: { mime_type: 'image/png', data: base64Data } },
-                { text: "OCR toàn bộ trang này theo đúng hướng dẫn. Không thêm bất kỳ lời dẫn nào." }
-              ]
-            }],
-            system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
-            generationConfig: { temperature: 0.1 }
-          };
-
-          const res = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+          const pics = Array.isArray(base64Data) ? base64Data : [base64Data];
+          const parts = [];
+          pics.forEach((bb, k) => {
+            if (pics.length > 1) parts.push({ text: `Ảnh ${k + 1} = TRANG ${k + 1}:` });
+            parts.push({ inline_data: { mime_type: 'image/png', data: bb } });
           });
+          parts.push({ text: pics.length > 1 ? `OCR lần lượt ${pics.length} trang trên theo đúng hướng dẫn, mỗi trang bắt đầu bằng một dòng <<<TRANG k>>>. Không thêm lời dẫn.` : 'OCR toàn bộ trang này theo đúng hướng dẫn. Không thêm bất kỳ lời dẫn nào.' });
+          const body = { contents: [{ parts }], system_instruction: { parts: [{ text: buildSystemPrompt() + (pics.length > 1 ? batchRule(pics.length) : '') }] } };
+          const send = (gc) => fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, generationConfig: gc }) });
+          let res = await send(genCfg(model));
+          if (res.status === 400) { const t400 = await res.clone().text(); if (!/API key|API_KEY/i.test(t400)) res = await send({ temperature: 0.1 }); }
 
           if (!res.ok) {
             let msg = `HTTP ${res.status}`;
@@ -689,19 +1537,55 @@ QUY TẮC CỰC KỲ QUAN TRỌNG:
           }
 
           const resData = await res.json();
-          const outText = resData.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (!outText) throw new Error("AI không trả về văn bản.");
+          const cand = resData.candidates?.[0];
+          const outText = (cand?.content?.parts || []).map(x => x.text || '').join('').trim();
+          if (!outText) {
+            const why = cand?.finishReason || resData.promptFeedback?.blockReason;
+            const ee = new Error('AI không trả về văn bản' + (why ? ` (${why})` : '') + '.'); ee.empty = true; throw ee;
+          }
+          markKey(key, 'ok');
           return outText;
 
         } catch (err) {
           lastErr = err;
+          if (err.status && key) markKey(key, classifyErr(err), friendlyError(err));
           log(`Key #${currentKeyIdx + 1}: ${friendlyError(err)}${apiKeys.length > 1 ? ' → đổi key' : ' → thử lại'}`, 'warn');
           rotateKey();
-          await new Promise(r => setTimeout(r, 2000));
+          await new Promise(r => setTimeout(r, classifyErr(err) === 'quota' ? 300 : 2000));
           attempts++;
+          if (err.empty && ++emptyTries >= 2) attempts = maxAttempts;
         }
       }
-      throw new Error(`mọi API key đều lỗi (${friendlyError(lastErr)})`);
+      const e = new Error(lastErr && lastErr.empty ? lastErr.message.replace(/\.$/, '') : `mọi API key đều lỗi (${friendlyError(lastErr)})`);
+      e.status = lastErr && lastErr.status; e.shortReason = friendlyError(lastErr);
+      e.fallback = [429, 503, 404].includes(e.status) || classifyErr(lastErr) === 'quota' || !!(lastErr && lastErr.empty);
+      throw e;
+    }
+
+    // --- Tự động chuyển model: 2.5 → cao dần khi model hiện tại hết lượt trên mọi key ---
+    let autoLevel = 0;
+    function autoChain() {
+      const names = [...$('selectModel').options].map(o => o.value).filter(v => /^gemini-\d+(?:\.\d+)?-(flash|pro)$/.test(v));
+      const list = [...new Set(names)].map(n => ({ n, v: parseFloat(n.match(/gemini-(\d+(?:\.\d+)?)/)[1]), t: /pro$/.test(n) ? 2 : 1 }))
+        .filter(x => x.v >= 2.5).sort((a, b) => a.v - b.v || a.t - b.t).map(x => x.n);
+      return list.length ? list : ['gemini-2.5-flash', 'gemini-2.5-pro'];
+    }
+    function resetQuotaFlags() { Object.keys(keyStatus).forEach(k => { if (keyStatus[k].state === 'quota') delete keyStatus[k]; }); renderKeyChips(); }
+    async function callGeminiSinglePageWithRetry(base64Data, modelSel) {
+      if (modelSel !== 'auto') return callGeminiWithModel(base64Data, modelSel, false);
+      const chain = autoChain(); let lastErr = null;
+      for (let i = Math.min(autoLevel, chain.length - 1); i < chain.length; i++) {
+        try { return await callGeminiWithModel(base64Data, chain[i], true); }
+        catch (err) {
+          lastErr = err;
+          if (err.fallback && i < chain.length - 1) {
+            log(`${chain[i]}: ${err.shortReason} → chuyển sang ${chain[i + 1]}`, 'warn');
+            autoLevel = i + 1; resetQuotaFlags(); continue;
+          }
+          throw err;
+        }
+      }
+      throw lastErr;
     }
 
     // --- 5. BỘ CHUYỂN LaTeX -> WORD EQUATION (OMML) & DỰNG DOCX ---
@@ -1030,6 +1914,11 @@ function inlineToXml(text,fmt,boldAll){
     out+=boldSplit(text.slice(last,m.index),boldAll);
     const display=m[1]!==undefined; const latex=display?m[1]:m[2];
     if(fmt==='latex') out+=textRun(m[0],boldAll);
+    else if(fmt==='mathtype'){
+      const mt=mathtypeObjectXml(latex);
+      if(mt) out+=mt;
+      else{ const omml=texToOmml(latex,false); out+=omml||textRun(m[0],boldAll); }
+    }
     else{
       const omml=texToOmml(latex,display&&text.trim()===m[0]);
       out+=omml||textRun(m[0],boldAll);
@@ -1073,7 +1962,7 @@ function tableXml(rawLines,fmt){
     }
     x+='</w:tr>';
   }
-  return x+'</w:tbl>'+para('',{before:0,after:0});
+  return x+'</w:tbl>';
 }
 function imageXml(id,wpx,hpx){
   const maxW=420; let w=wpx,h=hpx;
@@ -1082,22 +1971,25 @@ function imageXml(id,wpx,hpx){
   return `<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${id}" name="Hinh ${id}"/><wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="${id}" name="img${id}.png"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="rIdImg${id}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`;
 }
 
-const NS='xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"';
+const NS='xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w10="urn:schemas-microsoft-com:office:word"';
+const TINY_P='<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="20" w:lineRule="exact"/></w:pPr></w:p>';
 const XMLH='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
 
 function normalizeMathDelims(t){
   return t.replace(/\\\[([\s\S]*?)\\\]/g,(m,a)=>'$$'+a+'$$').replace(/\\\(([\s\S]*?)\\\)/g,(m,a)=>'$'+a+'$');
 }
 
-async function buildDocxBlob(pagesData,fmt,getImage,JSZipLib){
+async function buildDocxBlob(pagesData,fmt,getImage,JSZipLib,opts){
+  mtResetState();
   const media=[]; let body='';
   pagesData.forEach((page,pIdx)=>{
-    if(pIdx>0) body+='<w:p><w:r><w:br w:type="page"/></w:r></w:p>';
+    const startLen=body.length;
     const lines=normalizeMathDelims(page.text).split('\n');
     let tbl=[];
-    const flushTbl=()=>{ if(tbl.length){body+=tableXml(tbl,fmt);tbl=[];} };
+    const flushTbl=()=>{ if(tbl.length){ if(body.endsWith('</w:tbl>')) body+=TINY_P; body+=tableXml(tbl,fmt); tbl=[]; } };
     for(let i=0;i<lines.length;i++){
-      const line=lines[i].trim();
+      const line=lines[i].replace(/<br\s*\/?>/gi,' ').trim();
+      if(/^[-*_=~\s]{3,}$/.test(line)||/^\$+$/.test(line)) continue;
       if(line.startsWith('|')&&line.endsWith('|')&&line.length>1){tbl.push(line);continue;}
       flushTbl();
       if(!line) continue;
@@ -1112,7 +2004,7 @@ async function buildDocxBlob(pagesData,fmt,getImage,JSZipLib){
         if(/^\**PHẦN/i.test(textLine)||/^\**PHẦN/i.test(plain)) inner=inlineToXml(textLine,fmt,true);
         else if(hm) inner=textRun(hm[1],true)+inlineToXml(textLine.slice(hm[1].length),fmt,false);
         else inner=inlineToXml(textLine,fmt,false);
-        body+=para(inner,{});
+        if(inner) body+=para(inner,{center: fmt==='mathtype' && /^\$\$[\s\S]+\$\$$/.test(textLine.trim()) && (textLine.match(/\$\$/g)||[]).length===2});
       }
       if(im){
         const [,ymin,xmin,ymax,xmax]=im.map(Number);
@@ -1121,17 +2013,23 @@ async function buildDocxBlob(pagesData,fmt,getImage,JSZipLib){
       }
     }
     flushTbl();
+    if(pIdx>0&&opts&&opts.pageBreaks){ const seg=body.slice(startLen); body=body.slice(0,startLen)+seg.replace('<w:pPr>','<w:pPr><w:pageBreakBefore/>'); }
   });
-  body+=para('',{before:0,after:0});
+  if(body.endsWith('</w:tbl>')) body+=TINY_P;
   const doc=`${XMLH}<w:document ${NS}><w:body>${body}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1080" w:right="1080" w:bottom="1080" w:left="1080" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr></w:body></w:document>`;
   const W='http://schemas.openxmlformats.org/wordprocessingml/2006/main';
   const zip=new JSZipLib();
-  zip.file('[Content_Types].xml',`${XMLH}<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/></Types>`);
+  zip.file('[Content_Types].xml',`${XMLH}<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Default Extension="bin" ContentType="application/vnd.openxmlformats-officedocument.oleObject"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/></Types>`);
   zip.file('_rels/.rels',`${XMLH}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`);
   let rels=`<Relationship Id="rIdStyles" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rIdSettings" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings" Target="settings.xml"/>`;
   media.forEach((b64,i)=>{
     rels+=`<Relationship Id="rIdImg${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/img${i+1}.png"/>`;
     zip.file(`word/media/img${i+1}.png`,b64,{base64:true});
+  });
+  MT_STATE.items.forEach(it=>{
+    rels+=`<Relationship Id="rIdMtImg${it.n}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/eq${it.n}.png"/><Relationship Id="rIdMtOle${it.n}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/oleObject" Target="embeddings/oleObject${it.n}.bin"/>`;
+    zip.file(`word/media/eq${it.n}.png`,it.png,{base64:true});
+    zip.file(`word/embeddings/oleObject${it.n}.bin`,it.ole);
   });
   zip.file('word/_rels/document.xml.rels',`${XMLH}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${rels}</Relationships>`);
   zip.file('word/styles.xml',`${XMLH}<w:styles xmlns:w="${W}"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:eastAsia="Times New Roman" w:cs="Times New Roman"/><w:sz w:val="26"/><w:szCs w:val="26"/><w:lang w:val="vi-VN"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style><w:style w:type="table" w:default="1" w:styleId="TableNormal"><w:name w:val="Normal Table"/><w:uiPriority w:val="99"/><w:semiHidden/><w:unhideWhenUsed/><w:tblPr><w:tblInd w:w="0" w:type="dxa"/><w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="108" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="108" w:type="dxa"/></w:tblCellMar></w:tblPr></w:style></w:styles>`);
@@ -1142,9 +2040,807 @@ async function buildDocxBlob(pagesData,fmt,getImage,JSZipLib){
 // ==== DOCX CORE END ====
 
 
+// ==== MATHTYPE CORE START ====
+// LaTeX -> AST -> MTEF v5 -> OLE (Equation.DSMT4) + ảnh xem trước PNG.
+// Cấu trúc bám theo file .docx mẫu do MathType tạo ra (ProgID Equation.DSMT4).
+
+// ---------- 1. PARSER: LaTeX -> AST ----------
+// Bảng mã Symbol-font (Adobe Symbol) cho ký tự có trong font Symbol
+const MT_SYMPOS = {
+  'α':0x61,'β':0x62,'χ':0x63,'δ':0x64,'ε':0x65,'φ':0x66,'γ':0x67,'η':0x68,'ι':0x69,'ϕ':0x6A,'κ':0x6B,'λ':0x6C,'μ':0x6D,'ν':0x6E,'ο':0x6F,'π':0x70,'θ':0x71,'ρ':0x72,'σ':0x73,'τ':0x74,'υ':0x75,'ϖ':0x76,'ω':0x77,'ξ':0x78,'ψ':0x79,'ζ':0x7A,'ϑ':0x4A,'ς':0x56,
+  'Α':0x41,'Β':0x42,'Χ':0x43,'Δ':0x44,'Ε':0x45,'Φ':0x46,'Γ':0x47,'Η':0x48,'Ι':0x49,'Κ':0x4B,'Λ':0x4C,'Μ':0x4D,'Ν':0x4E,'Ο':0x4F,'Π':0x50,'Θ':0x51,'Ρ':0x52,'Σ':0x53,'Τ':0x54,'Υ':0x55,'Ω':0x57,'Ξ':0x58,'Ψ':0x59,'Ζ':0x5A,
+  '±':0xB1,'×':0xB4,'÷':0xB8,'≤':0xA3,'≥':0xB3,'≠':0xB9,'≈':0xBB,'≡':0xBA,'∞':0xA5,'∂':0xB6,'∇':0xD1,'∈':0xCE,'∉':0xCF,'∋':0x27,'⊂':0xCC,'⊆':0xCD,'⊃':0xC9,'⊇':0xCA,'⊄':0xCB,'∪':0xC8,'∩':0xC7,'∅':0xC6,'∀':0x22,'∃':0x24,
+  '∧':0xD9,'∨':0xDA,'¬':0xD8,'→':0xAE,'←':0xAC,'↔':0xAB,'↑':0xAD,'↓':0xAF,'⇒':0xDE,'⇐':0xDC,'⇔':0xDB,'∠':0xD0,'⊥':0x5E,'∼':0x7E,'≅':0x40,'∝':0xB5,'⋅':0xD7,'°':0xB0,'∴':0x5C,'ℵ':0xC0,'ℜ':0xC2,'ℑ':0xC1,
+  '∑':0xE5,'∏':0xD5,'∫':0xF2,'−':0x2D,'∗':0x2A,'=':0x3D,'+':0x2B,'<':0x3C,'>':0x3E,'|':0x7C,'′':0xA2
+};
+const MT_BIG = new Set(['∑','∏','∫','∬','∭','∮','⋃','⋂','⨁','⋁','⋀','∐']);
+const MT_PUNCT = new Set(['(',')','[',']',',','.',';',':','!','?','/','%','{','}','#','$','&','@','_','"','\\']);
+
+function mtChar(ch, opt){
+  opt = opt||{};
+  const cp = ch.codePointAt(0);
+  let tf, b8 = null;
+  if(opt.tf!==undefined){ tf = opt.tf; }
+  else if(/[0-9]/.test(ch)) tf = 0x88;
+  else if(/[A-Za-z]/.test(ch)) tf = 0x83;
+  else if((cp>=0x3B1&&cp<=0x3C9)||cp===0x3D1||cp===0x3D5||cp===0x3D6||cp===0x3F5) tf = 0x84;
+  else if(cp>=0x391&&cp<=0x3A9) tf = 0x85;
+  else if(MT_PUNCT.has(ch)) tf = 0x88;
+  else if(cp>=0x80 && /\p{L}/u.test(ch)) tf = 0x81;
+  else tf = 0x86;
+  if(opt.b8!==undefined) b8 = opt.b8;
+  else if((tf===0x84||tf===0x85||tf===0x86) && MT_SYMPOS[ch]!==undefined) b8 = MT_SYMPOS[ch];
+  let mt = cp; if(mt>0xFFFF) mt = 0x3F;
+  return {t:'c', ch, tf, mt, b8, fn:!!opt.fn, big: MT_BIG.has(ch)};
+}
+function mtText(str, tf, extra){
+  const out=[]; for(const ch of str){ out.push(mtChar(ch, Object.assign({tf}, extra||{}))); } return out;
+}
+
+const MT_FENCE = { // [kind, left, right]
+  paren:{k:1,l:'(',r:')'}, brack:{k:3,l:'[',r:']'}, brace:{k:2,l:'{',r:'}'}, bar:{k:4,l:'|',r:'|'}, dbar:{k:5,l:'‖',r:'‖'},
+  floor:{k:6,l:'⌊',r:'⌋'}, ceil:{k:7,l:'⌈',r:'⌉'}, angle:{k:0,l:'⟨',r:'⟩'}
+};
+function mtFenceKind(l, r){
+  for(const [name,f] of Object.entries(MT_FENCE)){
+    if((l===''||l===f.l)&&(r===''||r===f.r)&&(l!==''||r!=='')) return name;
+  }
+  return null;
+}
+function mtIsTall(nodes){
+  for(const n of nodes){
+    if(!n) continue;
+    if(n.t==='frac'||n.t==='pile'||n.t==='matrix') return true;
+    if(n.t==='sqrt' && (mtIsTall(n.body)||mtIsTall(n.idx||[]))) return true;
+    if(n.t==='fence' && mtIsTall(n.body)) return true;
+    if(n.t==='over' && mtIsTall(n.body)) return true;
+  }
+  return false;
+}
+
+function mtParseLatex(src){
+  const toks = tokenizeLatex(src); let pos = 0;
+  const isCl = x=>x.k==='sym'&&x.v==='}';
+  const SPECIAL_CMD_CH = {'{':'{','}':'}','%':'%','$':'$','#':'#','&':'&','_':'_','|':'‖'};
+
+  function row(stop){
+    const out=[]; let guard=0;
+    while(pos<toks.length && !stop(toks[pos])){
+      const p0=pos; item(out, stop);
+      if(pos===p0 && ++guard>3){ pos++; guard=0; }
+    }
+    return out;
+  }
+  function scriptArg(){
+    const t=toks[pos]; if(!t) return [];
+    if(t.k==='sym'&&t.v==='{'){ pos++; const r=row(isCl); pos++; return r; }
+    const tmp=[]; atom(()=>false, tmp); return tmp;
+  }
+  function arg(){ return scriptArg(); }
+
+  function item(out, stop){
+    atom(stop, out);
+    let sub=null, sup=null;
+    for(;;){
+      const t=toks[pos]; if(!t) break;
+      if(t.k==='cmd'&&(t.v==='limits'||t.v==='nolimits')){ pos++; continue; }
+      if(t.k==='sym'&&t.v==='^'){ pos++; sup=(sup||[]).concat(scriptArg()); }
+      else if(t.k==='sym'&&t.v==='_'){ pos++; sub=(sub||[]).concat(scriptArg()); }
+      else break;
+    }
+    if(sup && sup.length===1 && sup[0].t==='c' && sup[0].ch==='∘'){ out.push(mtChar('°')); sup=null; }
+    if(sub||sup) out.push({t:'scr', sub, sup});
+  }
+
+  function readDelim(){
+    const t=toks[pos++]; if(!t) return '';
+    if(t.k==='ch') return t.v==='.'?'':t.v;
+    if(t.k==='cmd'){
+      const m={'{':'{','}':'}','|':'‖',langle:'⟨',rangle:'⟩',lfloor:'⌊',rfloor:'⌋',lceil:'⌈',rceil:'⌉',vert:'|',Vert:'‖',lbrace:'{',rbrace:'}',lvert:'|',rvert:'|',lVert:'‖',rVert:'‖'};
+      return m[t.v]||'';
+    }
+    return '';
+  }
+  function makeFence(l, r, body){
+    const kind = mtFenceKind(l, r);
+    return {t:'fence', l, r, kind, body};
+  }
+  function parseEnv(env){
+    const name=env.replace(/\*$/,'');
+    let spec='';
+    if((name==='array'||name==='tabular'||name==='subarray')&&toks[pos]&&toks[pos].k==='sym'&&toks[pos].v==='{'){
+      let d=0; do{const t=toks[pos++]; if(t.k==='sym'&&t.v==='{')d++; else if(t.k==='sym'&&t.v==='}')d--; else if(t.k==='ch'&&/[lcr]/.test(t.v)) spec+=t.v;}while(d>0&&pos<toks.length);
+    }
+    const rows=[[]]; let guard=0;
+    while(pos<toks.length){
+      const p0=pos;
+      const items=row(x=>x.k==='end'||(x.k==='sym'&&x.v==='&')||(x.k==='cmd'&&x.v==='\\'));
+      rows[rows.length-1].push(items);
+      if(pos>=toks.length) break;
+      const t=toks[pos++];
+      if(t.k==='end') break;
+      if(t.k==='cmd'&&t.v==='\\'){
+        if(toks[pos]&&toks[pos].k==='ch'&&toks[pos].v==='['){ while(pos<toks.length&&!(toks[pos].k==='ch'&&toks[pos].v===']'))pos++; pos++; }
+        rows.push([]);
+      }
+      if(pos===p0 && ++guard>3) break;
+    }
+    while(rows.length>1&&rows[rows.length-1].every(c=>c.length===0)) rows.pop();
+    const sp = ()=>mtText('  ',0x81);
+    const joinCells = (cells, withSpace)=>{ let o=[]; cells.forEach((c,i)=>{ if(i>0&&withSpace) o=o.concat(sp()); o=o.concat(c); }); return o; };
+    const mkMatrix = ()=>{
+      const cols=Math.max(1,...rows.map(r=>r.length));
+      rows.forEach(r=>{while(r.length<cols) r.push([]);});
+      return {t:'matrix', rows, cols};
+    };
+    const D={pmatrix:['(',')'],bmatrix:['[',']'],Bmatrix:['{','}'],vmatrix:['|','|'],Vmatrix:['‖','‖']};
+    if(D[name]) return [makeFence(D[name][0],D[name][1],[mkMatrix()])];
+    if((name==='array'||name==='subarray'||name==='tabular')&&spec.length===1){
+      return [{t:'pile', align:{l:1,c:2,r:3}[spec], lines: rows.map(r=>joinCells(r,false))}];
+    }
+    if(name==='matrix'||name==='smallmatrix'||name==='array'||name==='tabular'||name==='subarray') return [mkMatrix()];
+    if(name==='cases'||name==='dcases'||name==='rcases'){
+      const pile={t:'pile', align:1, lines: rows.map(r=>joinCells(r,true))};
+      return name==='rcases' ? [makeFence('','}',[pile])] : [makeFence('{','',[pile])];
+    }
+    if(['aligned','align','alignat','split','gather','gathered','eqnarray','multline','flalign'].includes(name)){
+      return [{t:'pile', align:1, lines: rows.map(r=>joinCells(r,false))}];
+    }
+    return rows.reduce((a,r)=>a.concat(joinCells(r,false)),[]);
+  }
+
+  function atom(stop, out){
+    if(pos>=toks.length) return;
+    const t=toks[pos++];
+    if(t.k==='sym'){
+      if(t.v==='{'){ const r=row(isCl); pos++; r.forEach(x=>out.push(x)); return; }
+      if(t.v==='^'||t.v==='_'){ pos--; return; }
+      return; // '&', '}' lạc
+    }
+    if(t.k==='ch'){
+      const v=t.v;
+      if(v==='-') { out.push(mtChar('−')); return; }
+      if(v==='*') { out.push(mtChar('∗')); return; }
+      if(v==='~') return;
+      if(v==="'") { out.push(mtChar('′')); return; }
+      out.push(mtChar(v)); return;
+    }
+    if(t.k==='text'){
+      const st=t.style; let s=rawToText(t.v);
+      if(st==='nor'||st==='nor_b'||st==='nor_i'){ mtText(s,0x81).forEach(x=>out.push(x)); return; }
+      if(st==='p'){ mtText(s,0x82).forEach(x=>out.push(x)); return; }
+      if(st==='b'){ mtText(s,0x87).forEach(x=>out.push(x)); return; }
+      if(st==='bb') s=s.replace(/[A-Z]/g,c=>BB[c]||c);
+      for(const ch of s){ out.push(BB_SET.has(ch)?mtChar(ch,{tf:0x81}):mtChar(ch)); }
+      return;
+    }
+    if(t.k==='begin'){ parseEnv(t.v).forEach(x=>out.push(x)); return; }
+    if(t.k==='end') return;
+    const name=t.v;
+    if(BIGOPS[name]){ out.push(mtChar(BIGOPS[name])); return; }
+    if(LIMOPS.has(name)||FUNCS.has(name)){
+      const letters = mtText(name,0x82); if(letters.length) letters[0].fn=true;
+      letters.forEach(x=>out.push(x)); return;
+    }
+    if(RAWSTYLE[name]){ // \mathbb R (không có {})
+      const a=arg(); const st=RAWSTYLE[name];
+      a.forEach(x=>{ if(x.t==='c'){
+        if(st==='bb'&&BB[x.ch]) out.push(mtChar(BB[x.ch],{tf:0x81})); else if(st==='p') out.push(Object.assign({},x,{tf:0x82})); else if(st==='b') out.push(Object.assign({},x,{tf:0x87})); else out.push(x);
+      } else out.push(x); });
+      return;
+    }
+    if(ACC[name]){
+      const a=arg();
+      const kindMap={vec:'vec',overrightarrow:'vec',overleftarrow:'vecl',hat:'hat',widehat:'hat',tilde:'tilde',widetilde:'tilde'};
+      const kind=kindMap[name];
+      if(kind){ out.push({t:'over', kind, body:a}); return; }
+      a.forEach(x=>out.push(x)); return; // dot, ddot, check... : bỏ dấu
+    }
+    switch(name){
+      case 'frac': case 'dfrac': case 'tfrac': case 'cfrac': { const a=arg(), b=arg(); out.push({t:'frac', num:a, den:b}); return; }
+      case 'binom': case 'dbinom': case 'tbinom': { const a=arg(), b=arg(); out.push(makeFence('(',')',[{t:'pile',align:2,lines:[a,b]}])); return; }
+      case 'sqrt': {
+        let idx=null;
+        if(toks[pos]&&toks[pos].k==='ch'&&toks[pos].v==='['){ pos++; idx=row(x=>x.k==='ch'&&x.v===']'); pos++; }
+        const body=arg(); out.push({t:'sqrt', body, idx}); return;
+      }
+      case 'overline': case 'bar': { out.push({t:'over', kind:'bar', body:arg()}); return; }
+      case 'underline': { out.push({t:'over', kind:'ubar', body:arg()}); return; }
+      case 'overbrace': case 'underbrace': case 'boxed': case 'mathstrut': { arg().forEach(x=>out.push(x)); return; }
+      case 'overset': case 'stackrel': case 'underset': { const a=arg(); const b=arg(); b.forEach(x=>out.push(x)); return; }
+      case 'left': {
+        const l=readDelim(); const parts=[]; let r='';
+        while(true){
+          const it=row(x=>x.k==='cmd'&&(x.v==='right'||x.v==='middle'));
+          parts.push(it);
+          if(pos>=toks.length) break;
+          const t2=toks[pos++];
+          if(t2.v==='middle'){ readDelim(); parts.push(mtText('|',0x86)); continue; }
+          r=readDelim(); break;
+        }
+        const body=parts.reduce((a,p)=>a.concat(p),[]);
+        out.push(makeFence(l,r,body)); return;
+      }
+      case 'right': case 'middle': readDelim(); return;
+      case 'not': return;
+      case 'xrightarrow': case 'xleftarrow': { arg(); out.push(mtChar(name==='xrightarrow'?'→':'←')); return; }
+      case 'ldots': case 'dots': case 'cdots': { const ch=name==='cdots'?'⋅':'.'; for(let i=0;i<3;i++) out.push(mtChar(ch,{tf:ch==='.'?0x88:0x86})); return; }
+      case 'circ': out.push(mtChar('∘')); return;
+      case 'implies': case 'Longrightarrow': out.push(mtChar('⇒')); return;
+      case 'iff': case 'Longleftrightarrow': out.push(mtChar('⇔')); return;
+      case 'longrightarrow': out.push(mtChar('→')); return;
+      case 'longleftrightarrow': out.push(mtChar('↔')); return;
+      default: break;
+    }
+    if(BIGSIZE.has(name)){ const d=readDelim(); if(d) out.push(mtChar(d)); return; }
+    if(IGNORE.has(name)) return;
+    if(SKIP_ARG.has(name)){ arg(); return; }
+    if(SPACES[name]!==undefined) return;
+    if(SYM[name]!==undefined){
+      const s=SYM[name]; if(s==='\n') return;
+      for(const ch of s) out.push(mtChar(ch)); return;
+    }
+    mtText(name,0x81).forEach(x=>out.push(x)); // lệnh lạ -> chữ thường
+  }
+  return row(()=>false);
+}
+const BB_SET = new Set(['ℝ','ℕ','ℤ','ℚ','ℂ','ℙ','ℍ']);
+
+// ---------- 2. ENCODER: AST -> MTEF v5 ----------
+const MT_PREFIX_HEX = '0501000704' + '44534d543700' + '01' + '13' + '57696e416c6c4261736963436f6465506167657300'
+  + '11' + '05' + '54696d6573204e657720526f6d616e00' + '11' + '03' + '53796d626f6c00' + '11' + '05' + '436f7572696572204e657700' + '11' + '04' + '4d5420457874726100';
+function mtHex(h){ const a=new Uint8Array(h.length/2); for(let i=0;i<a.length;i++) a[i]=parseInt(h.substr(i*2,2),16); return a; }
+
+const SZ_FULL=0, SZ_SUB=1, SZ_SUB2=2, SZ_SYM=3, SZ_SUBSYM=4;
+const SZ_TAG=[0x0a,0x0b,0x0c,0x0d,0x0e];
+function mtSubSize(s){ return s===SZ_FULL?SZ_SUB: s===SZ_SYM?SZ_SUBSYM: SZ_SUB2; }
+
+function mtEncode(ast){
+  const b=[]; let cur=null;
+  const push=(...a)=>{ for(const x of a) b.push(x&255); };
+  const ensure=(s)=>{ if(cur!==s){ push(SZ_TAG[s]); cur=s; } };
+  function ch(n){
+    let opts=0; if(n.b8!==null&&n.b8!==undefined) opts|=0x04; if(n.fn) opts|=0x02;
+    push(0x02, opts, n.tf, n.mt&255, (n.mt>>8)&255);
+    if(opts&0x04) push(n.b8);
+  }
+  function tmplHead(sel, variation){ push(0x03, 0x00, sel); if(variation<128) push(variation); else push((variation&0x7f)|0x80, variation>>7); push(0x00); }
+  function line(nodes, size){
+    ensure(size);
+    if(!nodes||!nodes.length){ push(0x01,0x01); return; }
+    push(0x01,0x00); objs(nodes,size); push(0x00);
+  }
+  function fenceChar(c, kind){
+    const cp=c.codePointAt(0); const asc = cp<128;
+    const mtc = c==='⟨'?0x2329 : c==='⟩'?0x232A : cp;
+    push(0x02, asc?0x04:0x00, 0x86, mtc&255, (mtc>>8)&255); if(asc) push(cp);
+  }
+  function objs(nodes, size){
+    for(let i=0;i<nodes.length;i++){
+      const n=nodes[i];
+      if(n.t==='c'){
+        if(n.big){ ensure(SZ_SYM); ch(n); } else { ensure(size); ch(n); }
+      }
+      else if(n.t==='scr'){
+        ensure(size);
+        const ss=mtSubSize(size);
+        if(n.sub&&n.sup){ tmplHead(29,0); ensure(ss); line(n.sub,ss); line(n.sup,ss); }
+        else if(n.sup){ tmplHead(28,0); ensure(ss); line(null,ss); line(n.sup,ss); }
+        else { tmplHead(27,0); ensure(ss); line(n.sub,ss); line(null,ss); }
+        push(0x00);
+      }
+      else if(n.t==='frac'){ ensure(size); tmplHead(11,0); line(n.num,size); line(n.den,size); push(0x00); }
+      else if(n.t==='sqrt'){
+        ensure(size); tmplHead(10, n.idx?1:0); line(n.body,size); line(n.idx,mtSubSize(mtSubSize(size))); push(0x00);
+      }
+      else if(n.t==='over'){
+        ensure(size);
+        const m={bar:[13,0],ubar:[12,0],vec:[31,2],vecl:[31,1],hat:[33,0],tilde:[32,0]}[n.kind];
+        tmplHead(m[0],m[1]); line(n.body,size); push(0x00);
+      }
+      else if(n.t==='fence'){
+        const f = n.kind && mtIsTall(n.body);
+        if(f){
+          const F=MT_FENCE[n.kind]; ensure(size);
+          tmplHead(F.k, (n.l?1:0)|(n.r?2:0)); line(n.body,size);
+          ensure(size); if(n.l) fenceChar(n.l); if(n.r) fenceChar(n.r); push(0x00);
+        } else {
+          if(n.l){ ensure(size); ch(mtChar(n.l)); }
+          objs(n.body,size);
+          if(n.r){ ensure(size); ch(mtChar(n.r)); }
+        }
+      }
+      else if(n.t==='pile'){
+        ensure(size); push(0x04,0x00,n.align||1,1);
+        n.lines.forEach(l=>line(l,size)); push(0x00);
+      }
+      else if(n.t==='matrix'){
+        const R=n.rows.length, C=n.cols;
+        ensure(size); push(0x05,0x00,1,2,1,R,C);
+        for(let k=0;k<Math.ceil((R+1)/4);k++) push(0);
+        for(let k=0;k<Math.ceil((C+1)/4);k++) push(0);
+        n.rows.forEach(r=>r.forEach(c=>line(c,size)));
+        push(0x00);
+      }
+    }
+  }
+  const pre=mtHex(MT_PREFIX_HEX);
+  cur=null; ensure(SZ_FULL);
+  push(0x01,0x00); objs(ast,SZ_FULL); push(0x00); push(0x00);
+  const out=new Uint8Array(pre.length+b.length); out.set(pre,0); out.set(b,pre.length);
+  return out;
+}
+
+// ---------- 3. OLE (Compound File) ----------
+function mtU16(v){return [v&255,(v>>8)&255];}
+function mtU32(v){return [v&255,(v>>8)&255,(v>>16)&255,(v>>>24)&255];}
+function mtEquationNative(mtef){
+  const hdr=new Uint8Array(28);
+  const dv=new DataView(hdr.buffer);
+  dv.setUint16(0,0x1c,true); dv.setUint32(2,0x00020000,true); dv.setUint16(6,0xC22E,true); dv.setUint32(8,mtef.length,true);
+  dv.setUint32(12,0,true); dv.setUint32(16,0x6ac447d5,true); dv.setUint32(20,0x00c6df2d,true); dv.setUint32(24,0x6ac447d5,true);
+  const o=new Uint8Array(28+mtef.length); o.set(hdr,0); o.set(mtef,28); return o;
+}
+const MT_COMPOBJ = '0100feff030a0000ffffffff03ce020000000000c000000000000046160000004d6174685479706520372e30204571756174696f6e000c0000004d61746854797065204546000f0000004571756174696f6e2e44534d543400f439b271000000000000000000000000';
+const MT_OLE10 = '0100000208000000000000000000000000000000';
+const MT_OBJINFO = '000003000400';
+
+function mtBuildOle(eqNative){
+  const streams=[ ['\u0001CompObj',mtHex(MT_COMPOBJ)], ['\u0001Ole',mtHex(MT_OLE10)], ['\u0003ObjInfo',mtHex(MT_OBJINFO)], ['Equation Native',eqNative] ];
+  const END=0xFFFFFFFE, FREE=0xFFFFFFFF, FATSEC=0xFFFFFFFD;
+  // phân loại mini / thường
+  let mini=[], big=[], miniCount=0;
+  streams.forEach((s,i)=>{
+    if(s[1].length<4096){ const n=Math.max(1,Math.ceil(s[1].length/64)); mini.push({i,start:miniCount,n}); miniCount+=n; }
+    else big.push({i,n:Math.ceil(s[1].length/512)});
+  });
+  const miniFatSecs=Math.ceil(miniCount/128)||1;
+  const miniStreamSecs=Math.ceil(miniCount*64/512)||1;
+  // bố cục sector: 0 FAT, 1-2 dir, 3.. minifat, rồi ministream, rồi big streams
+  const dirStart=1, dirSecs=1+1; // 8 entry (2 sector) giống mẫu của MathType
+  const miniFatStart=dirStart+dirSecs;
+  const miniStreamStart=miniFatStart+miniFatSecs;
+  let next=miniStreamStart+miniStreamSecs;
+  big.forEach(x=>{ x.start=next; next+=x.n; });
+  const total=next;
+  if(total>128) throw new Error('Công thức quá dài cho 1 FAT sector');
+  const fat=new Array(128).fill(FREE);
+  fat[0]=FATSEC;
+  for(let k=0;k<dirSecs;k++) fat[dirStart+k]= k<dirSecs-1?dirStart+k+1:END;
+  for(let k=0;k<miniFatSecs;k++) fat[miniFatStart+k]= k<miniFatSecs-1?miniFatStart+k+1:END;
+  for(let k=0;k<miniStreamSecs;k++) fat[miniStreamStart+k]= k<miniStreamSecs-1?miniStreamStart+k+1:END;
+  big.forEach(x=>{ for(let k=0;k<x.n;k++) fat[x.start+k]= k<x.n-1?x.start+k+1:END; });
+  const mfat=new Array(miniFatSecs*128).fill(FREE);
+  mini.forEach(m=>{ for(let k=0;k<m.n;k++) mfat[m.start+k]= k<m.n-1?m.start+k+1:END; });
+  const buf=new Uint8Array(512+total*512);
+  const dv=new DataView(buf.buffer);
+  buf.set(mtHex('d0cf11e0a1b11ae1'),0);
+  dv.setUint16(24,0x3e,true); dv.setUint16(26,3,true); dv.setUint16(28,0xFFFE,true); dv.setUint16(30,9,true); dv.setUint16(32,6,true);
+  dv.setUint32(44,1,true); dv.setUint32(48,dirStart,true); dv.setUint32(56,4096,true);
+  dv.setUint32(60,miniFatStart,true); dv.setUint32(64,miniFatSecs,true); dv.setUint32(68,END,true); dv.setUint32(72,0,true);
+  for(let k=0;k<109;k++) dv.setUint32(76+k*4, k===0?0:FREE, true);
+  const sec=i=>512+i*512;
+  fat.forEach((v,k)=>dv.setUint32(sec(0)+k*4,v,true));
+  mfat.forEach((v,k)=>dv.setUint32(sec(miniFatStart)+k*4,v,true));
+  // ministream
+  const msBase=sec(miniStreamStart);
+  mini.forEach(m=>{ buf.set(streams[m.i][1], msBase+m.start*64); });
+  big.forEach(x=>{ buf.set(streams[x.i][1], sec(x.start)); });
+  // directory
+  const ent=(idx,name,type,color,L,R,C,start,size,clsid)=>{
+    const o=sec(dirStart)+idx*128;
+    for(let k=0;k<name.length;k++) dv.setUint16(o+k*2,name.charCodeAt(k),true);
+    dv.setUint16(o+64,name.length?(name.length+1)*2:0,true);
+    buf[o+66]=type; buf[o+67]=color; dv.setUint32(o+68,L,true); dv.setUint32(o+72,R,true); dv.setUint32(o+76,C,true);
+    if(clsid) buf.set(mtHex(clsid),o+80);
+    dv.setUint32(o+116,start,true); dv.setUint32(o+120,size,true);
+  };
+  const sinfo=i=>{ const m=mini.find(x=>x.i===i); if(m) return [m.start,streams[i][1].length]; const g=big.find(x=>x.i===i); return [g.start,streams[i][1].length]; };
+  ent(0,'Root Entry',5,1,FREE,FREE,1,miniStreamStart,miniCount*64,'03ce020000000000c000000000000046');
+  ent(1,streams[0][0],2,1,2,3,FREE,...sinfo(0));
+  ent(2,streams[1][0],2,1,FREE,FREE,FREE,...sinfo(1));
+  ent(3,streams[2][0],2,1,FREE,4,FREE,...sinfo(2));
+  ent(4,streams[3][0],2,1,FREE,FREE,FREE,...sinfo(3));
+  return buf;
+}
+// ==== MATHTYPE CORE END ====
+
+// ==== MATHTYPE PREVIEW START ====
+// ---------- 4. ẢNH XEM TRƯỚC (canvas -> PNG) ----------
+const MT_OPSET = new Set(['+','−','±','∓','×','÷','∗','⋅','=','≠','<','>','≤','≥','≈','≡','∼','≃','≅','∝','→','←','↔','⇒','⇐','⇔','∈','∉','∋','⊂','⊆','⊃','⊇','∪','∩','∧','∨','∖','⊕','⊗','∥','⊥','≪','≫']);
+function mtRender(ast, opts){
+  opts = opts||{};
+  const SCALE = opts.scale||4, BASE = opts.base||12;
+  const FONT = '"Times New Roman","Liberation Serif","Cambria Math","Noto Serif","DejaVu Serif",serif';
+  const cv = document.createElement('canvas'); const mctx = cv.getContext('2d');
+  const sub = s=> s>=11 ? s*7/12 : Math.max(4.5, s*5/7);
+  function fontOf(n, s){
+    const ital = (n.tf===0x83||n.tf===0x84);
+    const bold = n.tf===0x87;
+    return `${ital?'italic ':''}${bold?'bold ':''}${s}px ${FONT}`;
+  }
+  const E = {w:0,a:0,d:0,draw(){}};
+  function chBox(n, s){
+    const sz = n.big ? s*1.5 : s;
+    mctx.font = fontOf(n, sz);
+    const w = mctx.measureText(n.ch).width;
+    const a = n.big ? 0.8*sz : 0.72*s, d = n.big ? 0.3*sz : 0.22*s;
+    const lift = n.big ? 0.12*s : 0; // đưa ký hiệu lớn xuống trục toán
+    return {w, a:a-lift*0, d, op:MT_OPSET.has(n.ch), draw(c,x,y){ c.font=fontOf(n,sz); c.fillText(n.ch,x,y+(n.big?0.25*s:0)); }};
+  }
+  function seq(items){
+    let w=0,a=0,d=0; const xs=[];
+    items.forEach(b=>{ xs.push(w); w+=b.w; a=Math.max(a,b.a); d=Math.max(d,b.d); });
+    return {w,a,d,draw(c,x,y){ items.forEach((b,i)=>b.draw(c,x+xs[i],y)); }};
+  }
+  function pad(b, l, r){ return {w:b.w+l+r,a:b.a,d:b.d,draw(c,x,y){ b.draw(c,x+l,y); }}; }
+  function shift(b, dy){ return {w:b.w,a:b.a-dy,d:b.d+dy,draw(c,x,y){ b.draw(c,x,y-dy); }}; } // dy>0: lên
+  function rowBox(nodes, s){
+    const items=[]; let prevOp=true, prevFn=false;
+    for(let i=0;i<nodes.length;i++){
+      const n=nodes[i];
+      if(n.t==='scr'){
+        const base=items.length?items.pop():{w:0,a:0.72*s,d:0.22*s,draw(){}};
+        items.push(scrBox(base,n,s)); prevOp=false; continue;
+      }
+      let b=nodeBox(n,s);
+      if(n.t==='c'){
+        const isOp = MT_OPSET.has(n.ch) && n.tf===0x86;
+        if(isOp){
+          const nextExists = i<nodes.length-1;
+          if(!prevOp && nextExists){ b=pad(b,0.22*s,0.22*s); }
+          prevOp=true;
+        } else {
+          prevOp = (n.ch==='(' || n.ch==='[' || n.ch==='{' || n.ch===',' );
+        }
+        if(prevFn && n.tf!==0x82) { items.push({w:0.17*s,a:0,d:0,draw(){}}); }
+        prevFn = n.fn || (n.tf===0x82 && prevFn);
+        // kết thúc dãy hàm: thêm khoảng nhỏ sau chữ cuối
+        const nx=nodes[i+1];
+        if(n.tf===0x82 && prevFn && !(nx&&nx.t==='c'&&nx.tf===0x82&&!nx.fn) && !(nx&&nx.t==='scr')){ prevFn=false; b=pad(b,0,0.17*s); }
+      } else { prevOp=false; prevFn=false; }
+      items.push(b);
+    }
+    return seq(items);
+  }
+  function scrBox(base, n, s){
+    const ss=sub(s);
+    const sp = n.sup ? rowBox(n.sup, ss) : null, sb = n.sub ? rowBox(n.sub, ss) : null;
+    let supUp = Math.max(0.42*s, base.a*0.62), subDn = Math.max(0.2*s, base.d+0.1*s);
+    if(sp && sb){ const gap=(supUp - sp.d) - (-(subDn) + sb.a); if(gap<0.2*s){ const k=(0.2*s-gap)/2; supUp+=k; subDn+=k; } }
+    const sw=Math.max(sp?sp.w:0, sb?sb.w:0);
+    return {w:base.w+sw+0.04*s, a:Math.max(base.a, sp?supUp+sp.a:0), d:Math.max(base.d, sb?subDn+sb.d:0),
+      draw(c,x,y){ base.draw(c,x,y); if(sp) sp.draw(c,x+base.w+0.04*s,y-supUp); if(sb) sb.draw(c,x+base.w+0.04*s,y+subDn); }};
+  }
+  function lineBox(nodes, s){ return rowBox(nodes||[], s); }
+  function fenceDraw(c, kind, side, x, top, bot, w, s){
+    c.beginPath(); const mid=(top+bot)/2, H=bot-top;
+    c.lineWidth = Math.max(0.5, s*0.055);
+    const L = side==='l';
+    const xa = L ? x+w : x, xb = L ? x : x+w;       // xa: phía trong, xb: phía ngoài
+    if(kind==='paren'){ c.moveTo(xa,top); c.quadraticCurveTo(xb-(L?-0:0)+(L?-w*0.2:w*0.2),mid,xa,bot); }
+    else if(kind==='brack'||kind==='floor'||kind==='ceil'){
+      const yt = kind==='floor'?top:top, yb=bot;
+      if(kind==='ceil'){ c.moveTo(xa,top); c.lineTo(xb,top); c.lineTo(xb,bot); }
+      else if(kind==='floor'){ c.moveTo(xb,top); c.lineTo(xb,bot); c.lineTo(xa,bot); }
+      else { c.moveTo(xa,yt); c.lineTo(xb,yt); c.lineTo(xb,yb); c.lineTo(xa,yb); }
+    }
+    else if(kind==='brace'){
+      const k=Math.min(0.14*H, 0.6*s), xm=(xa+xb)/2;
+      c.moveTo(xa,top); c.quadraticCurveTo(xm,top,xm,top+k); c.lineTo(xm,mid-k); c.quadraticCurveTo(xm,mid,xb,mid);
+      c.quadraticCurveTo(xm,mid,xm,mid+k); c.lineTo(xm,bot-k); c.quadraticCurveTo(xm,bot,xa,bot);
+    }
+    else if(kind==='bar'){ c.moveTo(x+w/2,top); c.lineTo(x+w/2,bot); }
+    else if(kind==='dbar'){ c.moveTo(x+w*0.3,top); c.lineTo(x+w*0.3,bot); c.moveTo(x+w*0.7,top); c.lineTo(x+w*0.7,bot); }
+    else if(kind==='angle'){ c.moveTo(xa,top); c.lineTo(xb,mid); c.lineTo(xa,bot); }
+    c.stroke();
+  }
+  function nodeBox(n, s){
+    switch(n.t){
+      case 'c': return chBox(n, s);
+      case 'frac': {
+        const num=lineBox(n.num,s), den=lineBox(n.den,s); const ax=0.26*s, g=0.1*s, W=Math.max(num.w,den.w)+0.2*s;
+        return {w:W, a:ax+g+num.d+num.a, d:den.a+den.d+g-ax,
+          draw(c,x,y){ num.draw(c,x+(W-num.w)/2,y-ax-g-num.d); den.draw(c,x+(W-den.w)/2,y-ax+g+den.a);
+            c.lineWidth=Math.max(0.5,s*0.05); c.beginPath(); c.moveTo(x+0.03*s,y-ax); c.lineTo(x+W-0.03*s,y-ax); c.stroke(); }};
+      }
+      case 'sqrt': {
+        const body=lineBox(n.body,s); const idx=n.idx?lineBox(n.idx,sub(sub(s))):null;
+        const top=body.a+0.16*s, bot=body.d+0.04*s, H=top+bot, rw=0.62*s, iw=idx?Math.max(0,idx.w-0.25*s):0;
+        return {w:iw+rw+body.w+0.1*s, a:top+0.04*s, d:bot,
+          draw(c,x,y){
+            const X=x+iw; c.lineWidth=Math.max(0.5,s*0.055); c.beginPath();
+            c.moveTo(X, y-top+0.58*H); c.lineTo(X+0.14*rw, y-top+0.52*H); c.lineTo(X+0.42*rw, y+bot); c.lineTo(X+rw, y-top);
+            c.lineTo(X+rw+body.w+0.1*s, y-top); c.stroke();
+            body.draw(c,X+rw+0.04*s,y);
+            if(idx) idx.draw(c,x,y-top+0.5*H-0.2*s);
+          }};
+      }
+      case 'over': {
+        const body=lineBox(n.body,s);
+        if(n.kind==='ubar') return {w:body.w,a:body.a,d:body.d+0.14*s,draw(c,x,y){ body.draw(c,x,y); c.lineWidth=Math.max(0.5,s*0.05); c.beginPath(); c.moveTo(x,y+body.d+0.08*s); c.lineTo(x+body.w,y+body.d+0.08*s); c.stroke(); }};
+        const extra = n.kind==='bar'?0.14*s : 0.26*s;
+        return {w:body.w,a:body.a+extra,d:body.d,draw(c,x,y){
+          body.draw(c,x,y); const yy=y-body.a-0.1*s; c.lineWidth=Math.max(0.5,s*0.05); c.beginPath();
+          if(n.kind==='bar'){ c.moveTo(x,yy); c.lineTo(x+body.w,yy); }
+          else if(n.kind==='vec'||n.kind==='vecl'){
+            const r=n.kind==='vec'; const x1=x+0.02*s, x2=x+body.w-0.02*s;
+            c.moveTo(x1,yy); c.lineTo(x2,yy);
+            const hx=r?x2:x1, dir=r?-1:1; c.moveTo(hx+dir*0.18*s,yy-0.09*s); c.lineTo(hx,yy); c.lineTo(hx+dir*0.18*s,yy+0.09*s);
+          }
+          else if(n.kind==='hat'){ const m=x+body.w/2, w=Math.min(0.3*s,body.w/2+0.05*s); c.moveTo(m-w,yy+0.08*s); c.lineTo(m,yy-0.08*s); c.lineTo(m+w,yy+0.08*s); }
+          else if(n.kind==='tilde'){ const w=Math.min(0.32*s,body.w/2+0.05*s), m=x+body.w/2; c.moveTo(m-w,yy+0.03*s); c.bezierCurveTo(m-w/2,yy-0.1*s,m-w/4,yy-0.1*s,m,yy); c.bezierCurveTo(m+w/4,yy+0.1*s,m+w/2,yy+0.1*s,m+w,yy-0.03*s); }
+          c.stroke(); }};
+      }
+      case 'fence': {
+        const body=rowBox(n.body,s);
+        if(!(n.kind && mtIsTall(n.body))){
+          const items=[]; if(n.l) items.push(chBox(mtChar(n.l),s)); items.push(body); if(n.r) items.push(chBox(mtChar(n.r),s)); return seq(items);
+        }
+        const ax=0.26*s, half=Math.max(body.a-ax, body.d+ax)+0.1*s, top=ax+half, bot=-ax+half; // trên/dưới trục
+        const wf = n.kind==='brace'?0.5*s : n.kind==='bar'?0.25*s : 0.38*s;
+        const lw=n.l?wf:0, rw=n.r?wf:0;
+        return {w:lw+body.w+rw+0.1*s, a:top, d:bot,
+          draw(c,x,y){ if(n.l) fenceDraw(c,n.kind,'l',x,y-top,y+bot,wf,s); body.draw(c,x+lw+0.05*s,y); if(n.r) fenceDraw(c,n.kind,'r',x+lw+body.w+0.1*s,y-top,y+bot,wf,s); }};
+      }
+      case 'pile': {
+        const ls=n.lines.map(l=>lineBox(l,s)); const g=0.28*s, ax=0.26*s;
+        const W=Math.max(0,...ls.map(l=>l.w)); const tot=ls.reduce((t,l)=>t+l.a+l.d,0)+g*(ls.length-1);
+        const topY=ax+tot/2; // phía trên (so với baseline)
+        return {w:W,a:topY,d:tot-topY,draw(c,x,y){
+          let cy=y-topY; ls.forEach(l=>{ cy+=l.a; const ox=n.align===1?0:n.align===3?W-l.w:(W-l.w)/2; l.draw(c,x+ox,cy); cy+=l.d+g; }); }};
+      }
+      case 'matrix': {
+        const cells=n.rows.map(r=>r.map(c=>lineBox(c,s))); const cw=[],rh=[]; const g=0.28*s, cg=0.9*s, ax=0.26*s;
+        for(let j=0;j<n.cols;j++) cw[j]=Math.max(0,...cells.map(r=>r[j].w));
+        const rA=cells.map(r=>Math.max(0.72*s,...r.map(b=>b.a))), rD=cells.map(r=>Math.max(0.22*s,...r.map(b=>b.d)));
+        const W=cw.reduce((a,b)=>a+b,0)+cg*(n.cols-1); const tot=rA.reduce((a,b)=>a+b,0)+rD.reduce((a,b)=>a+b,0)+g*(cells.length-1);
+        const topY=ax+tot/2;
+        return {w:W,a:topY,d:tot-topY,draw(c,x,y){
+          let cy=y-topY; cells.forEach((r,i)=>{ cy+=rA[i]; let cx=x; r.forEach((b,j)=>{ b.draw(c,cx+(cw[j]-b.w)/2,cy); cx+=cw[j]+cg; }); cy+=rD[i]+g; }); }};
+      }
+    }
+    return E;
+  }
+  const root = rowBox(ast, BASE);
+  const P = 1; // pt lề
+  const W = root.w + 2*P, H = root.a + root.d + 2*P;
+  cv.width = Math.max(1,Math.ceil(W*SCALE)); cv.height = Math.max(1,Math.ceil(H*SCALE));
+  const c = cv.getContext('2d');
+  c.scale(SCALE,SCALE); c.fillStyle='#000'; c.strokeStyle='#000'; c.textBaseline='alphabetic'; c.lineCap='round'; c.lineJoin='round';
+  root.draw(c, P, P+root.a);
+  return { png: cv.toDataURL('image/png').split(',')[1], w: cv.width/SCALE, h: cv.height/SCALE, d: root.d+P };
+}
+// ==== MATHTYPE PREVIEW END ====
+
+// ---------- 5. GẮN MATHTYPE VÀO .DOCX ----------
+const MT_STATE = {items:[], n:0, failed:0, shapeType:false};
+function mtResetState(){ MT_STATE.items=[]; MT_STATE.n=0; MT_STATE.failed=0; MT_STATE.shapeType=false; }
+const MT_SHAPETYPE = '<v:shapetype id="_x0000_t75" coordsize="21600,21600" o:spt="75" o:preferrelative="t" path="m@4@5l@4@11@9@11@9@5xe" filled="f" stroked="f"><v:stroke joinstyle="miter"/><v:formulas><v:f eqn="if lineDrawn pixelLineWidth 0"/><v:f eqn="sum @0 1 0"/><v:f eqn="sum 0 0 @1"/><v:f eqn="prod @2 1 2"/><v:f eqn="prod @3 21600 pixelWidth"/><v:f eqn="prod @3 21600 pixelHeight"/><v:f eqn="sum @0 0 1"/><v:f eqn="prod @6 1 2"/><v:f eqn="prod @7 21600 pixelWidth"/><v:f eqn="sum @8 21600 0"/><v:f eqn="prod @7 21600 pixelHeight"/><v:f eqn="sum @10 21600 0"/></v:formulas><v:path o:extrusionok="f" gradientshapeok="t" o:connecttype="rect"/><o:lock v:ext="edit" aspectratio="t"/></v:shapetype>';
+// Trả về XML của 1 đối tượng MathType (OLE Equation.DSMT4); null nếu không chuyển được
+function mathtypeObjectXml(latex){
+  try{
+    const ast = mtParseLatex(latex.trim());
+    if(!ast.length) return null;
+    const ole = mtBuildOle(mtEquationNative(mtEncode(ast)));
+    const pv = mtRender(ast);
+    const n = ++MT_STATE.n;
+    MT_STATE.items.push({n, ole, png:pv.png});
+    const id = '_x0000_i' + (1025+n);
+    const st = MT_STATE.shapeType ? '' : MT_SHAPETYPE; MT_STATE.shapeType = true;
+    return `<w:r><w:rPr><w:position w:val="${-Math.round(pv.d*2)}"/></w:rPr><w:object w:dxaOrig="${Math.round(pv.w*20)}" w:dyaOrig="${Math.round(pv.h*20)}">${st}<v:shape id="${id}" type="#_x0000_t75" style="width:${pv.w.toFixed(1)}pt;height:${pv.h.toFixed(1)}pt" o:ole=""><v:imagedata r:id="rIdMtImg${n}" o:title=""/></v:shape><o:OLEObject Type="Embed" ProgID="Equation.DSMT4" ShapeID="${id}" DrawAspect="Content" ObjectID="_${1840000000+n}" r:id="rIdMtOle${n}"/></w:object></w:r>`;
+  }catch(e){ MT_STATE.failed++; if(typeof console!=='undefined') console.warn('MathType lỗi:',latex,e); return null; }
+}
+
+    // ===== XUẤT LaTeX (.tex) CHO OVERLEAF / TeX LIVE =====
+    const TEX_ESC = { '\\': '\\textbackslash{}', '&': '\\&', '%': '\\%', '#': '\\#', '_': '\\_', '{': '\\{', '}': '\\}', '~': '\\textasciitilde{}', '^': '\\textasciicircum{}', '<': '\\textless{}', '>': '\\textgreater{}' };
+    const texEsc = (t) => String(t).replace(/[\\&%#_{}~^<>]/g, c => TEX_ESC[c]);
+    function inlineTex(text, whole) {
+      let out = '', last = 0, m;
+      const re = /\$\$([\s\S]*?)\$\$|\$([^$]+?)\$/g;
+      const txt = (s) => s.split('**').map((p, i) => i % 2 ? `\\textbf{${texEsc(p)}}` : texEsc(p)).join('');
+      while ((m = re.exec(text))) {
+        out += txt(text.slice(last, m.index));
+        if (m[1] !== undefined) out += (whole && text.trim() === m[0]) ? `\\[${m[1].trim()}\\]` : `$\\displaystyle ${m[1].trim()}$`;
+        else out += `$${m[2].trim()}$`;
+        last = m.index + m[0].length;
+      }
+      return out + txt(text.slice(last));
+    }
+    function pageToTex(text, ctx) {
+      const lines = normalizeMathDelims(text).split('\n'); let out = '', tbl = [];
+      const flush = () => {
+        if (!tbl.length) return;
+        const rows = tbl.filter(l => !/^\|[\s\-:|]+\|$/.test(l.trim())).map(splitTableRow);
+        const n = Math.max(...rows.map(r => r.length));
+        out += `\\begin{center}\n\\begin{tabular}{|${'c|'.repeat(n)}}\n\\hline\n` + rows.map(r => { const c = r.map(x => inlineTex(x)); while (c.length < n) c.push(''); return c.join(' & ') + ' \\\\ \\hline'; }).join('\n') + '\n\\end{tabular}\n\\end{center}\n\n';
+        tbl = [];
+      };
+      for (let raw of lines) {
+        const line = raw.replace(/<br\s*\/?>/gi, ' ').trim();
+        if (/^[-*_=~\s]{3,}$/.test(line) || /^\$+$/.test(line)) continue;
+        if (line.startsWith('|') && line.endsWith('|') && line.length > 1) { tbl.push(line); continue; }
+        flush();
+        if (!line) continue;
+        const im = line.match(/\[IMAGE:\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\]/);
+        const rest = line.replace(/\[IMAGE:[^\]]*\]/g, '').trim();
+        if (rest) {
+          if (/^\**PHẦN/i.test(rest)) out += `\\section*{${inlineTex(rest.replace(/\*\*/g, ''))}}\n\n`;
+          else {
+            const hm = !rest.startsWith('**') && /^((?:Câu|Bài)\s*\d+\s*[.:]?)/i.exec(rest);
+            out += (hm ? `\\textbf{${texEsc(hm[1])}}` + inlineTex(rest.slice(hm[1].length), false) : inlineTex(rest, true)) + '\n\n';
+          }
+        }
+        if (im && ctx && ctx.getImage) {
+          const name = ctx.getImage(+im[1], +im[2], +im[3], +im[4]);
+          if (name) out += `\\begin{center}\n\\includegraphics[width=0.6\\textwidth]{${name}}\n\\end{center}\n\n`;
+        }
+      }
+      flush(); return out;
+    }
+    function texDocument(body) {
+      return `% Biên dịch bằng pdfLaTeX (mặc định của Overleaf) hoặc XeLaTeX/LuaLaTeX
+\\documentclass[12pt,a4paper]{article}
+\\usepackage[utf8]{inputenc}
+\\usepackage[T5]{fontenc}
+\\usepackage[vietnamese]{babel}
+\\usepackage{amsmath,amssymb,amsfonts,graphicx,array}
+\\usepackage[margin=2cm]{geometry}
+\\setlength{\\parindent}{0pt}
+\\setlength{\\parskip}{5pt}
+\\begin{document}
+
+${body.trim()}
+
+\\end{document}
+`;
+    }
+    async function downloadTexBundle(tex, images, baseName) {
+      if (images.length) {
+        const z = new JSZip(); z.file('main.tex', tex);
+        images.forEach(im => z.file(im.name, im.data, im.b64 ? { base64: true } : {}));
+        saveAs(await z.generateAsync({ type: 'blob' }), baseName + '.zip');
+        log(`🎉 Đã tải ${baseName}.zip (main.tex + ${images.length} hình). Tải thẳng file .zip này lên Overleaf (New Project → Upload Project).`, 'success');
+      } else {
+        saveAs(new Blob([tex], { type: 'text/plain;charset=utf-8' }), baseName + '.tex');
+        log(`🎉 Đã tải ${baseName}.tex. Dán hoặc tải lên Overleaf / TeX Live để biên dịch.`, 'success');
+      }
+    }
+    async function buildAndDownloadTex(pagesData) {
+      try {
+        const images = []; let body = '';
+        for (const pg of pagesData) {
+          const ctx = { getImage: (a, b, c, d) => { const im = cropCanvasToImage(pg.canvas, a, b, c, d); if (!im) return null; const name = `images/hinh${images.length + 1}.png`; images.push({ name, data: im.base64, b64: true }); return name; } };
+          body += `% ---- ${isPdfFile ? 'Trang' : 'Ảnh'} ${pg.pageNum} ----\n` + pageToTex(pg.text, ctx);
+        }
+        const a = pagesData[0].pageNum, b = pagesData[pagesData.length - 1].pageNum;
+        await downloadTexBundle(texDocument(body), images, `DeThi_OCR_LaTeX${isPdfFile ? `_tr${a}-${b}` : ''}`);
+      } catch (e) { log(`❌ Lỗi tạo LaTeX: ${e.message}`, 'error'); }
+    }
+
+    // ---- Word (.docx) -> LaTeX, không dùng API ----
+    const OM_INV = {}; Object.entries(SYM).forEach(([k, v]) => { if (/^[A-Za-z]+$/.test(k) && v.length === 1 && !(v in OM_INV)) OM_INV[v] = '\\' + k + ' '; });
+    Object.assign(OM_INV, { '×': '\\times ', '⋅': '\\cdot ', '·': '\\cdot ', '≤': '\\leq ', '≥': '\\geq ', '≠': '\\neq ', '→': '\\to ', '°': '^\\circ ', '−': '-', '…': '\\ldots ', 'ε': '\\varepsilon ', 'φ': '\\varphi ' });
+    Object.entries(BIGOPS).forEach(([k, v]) => { OM_INV[v] = '\\' + k + ' '; });
+    const OM_DELIM = { '{': '\\{', '}': '\\}', '': '.', '‖': '\\|', '⟨': '\\langle ', '⟩': '\\rangle ', '⌊': '\\lfloor ', '⌋': '\\rfloor ', '⌈': '\\lceil ', '⌉': '\\rceil ' };
+    const OM_ACC = { '\u20D7': '\\vec', '\u0302': '\\hat', '\u0303': '\\tilde', '\u0307': '\\dot', '\u0308': '\\ddot', '\u0305': '\\overline', '\u00AF': '\\overline' };
+    const omKids = (n) => [...n.children].map(om).join('');
+    const omC = (n, name) => [...n.children].find(c => c.localName === name) || null;
+    const omV = (n, name) => { const c = omC(n, name); return c ? omKids(c) : ''; };
+    const omPr = (n, pr, tag) => { const p = omC(n, pr), c = p && omC(p, tag); return c ? c.getAttribute('m:val') : null; };
+    function om(n) {
+      const ln = n.localName;
+      if (/Pr$/.test(ln)) return '';
+      switch (ln) {
+        case 'r': {
+          const t = [...n.children].filter(c => c.localName === 't').map(c => c.textContent).join('');
+          const rp = omC(n, 'rPr'), nor = rp && omC(rp, 'nor');
+          if (nor) return `\\text{${texEsc(t)}}`;
+          const tt = t.replace(/[\s\u2009\u200a\u2005]/g, '');
+          if (/^(sin|cos|tan|cot|log|ln|lg|lim|max|min|exp|arcsin|arccos|arctan|det)$/.test(tt)) return '\\' + tt + ' ';
+          return [...t].map(c => OM_INV[c] || (/[\u2009\u200a\u2005\u2003]/.test(c) ? ' ' : c)).join('');
+        }
+        case 'f': return omPr(n, 'fPr', 'type') === 'noBar' ? `\\binom{${omV(n, 'num')}}{${omV(n, 'den')}}` : `\\frac{${omV(n, 'num')}}{${omV(n, 'den')}}`;
+        case 'sSup': return `{${omV(n, 'e')}}^{${omV(n, 'sup')}}`;
+        case 'sSub': return `{${omV(n, 'e')}}_{${omV(n, 'sub')}}`;
+        case 'sSubSup': return `{${omV(n, 'e')}}_{${omV(n, 'sub')}}^{${omV(n, 'sup')}}`;
+        case 'rad': { const d = omV(n, 'deg').trim(); return omPr(n, 'radPr', 'degHide') === '1' || !d ? `\\sqrt{${omV(n, 'e')}}` : `\\sqrt[${d}]{${omV(n, 'e')}}`; }
+        case 'nary': { const ch = omPr(n, 'naryPr', 'chr') || '∫', s = omV(n, 'sub').trim(), u = omV(n, 'sup').trim(); return (OM_INV[ch] || '\\int ') + (s ? `_{${s}}` : '') + (u ? `^{${u}}` : '') + ' ' + omV(n, 'e'); }
+        case 'd': {
+          const b = omPr(n, 'dPr', 'begChr'), e = omPr(n, 'dPr', 'endChr'), sp = omPr(n, 'dPr', 'sepChr');
+          const bb = b === null ? '(' : b, ee = e === null ? ')' : e;
+          const es = [...n.children].filter(c => c.localName === 'e');
+          if (bb === '{' && ee === '' && es.length === 1 && omC(es[0], 'eqArr')) return `\\begin{cases}${[...omC(es[0], 'eqArr').children].filter(c => c.localName === 'e').map(omKids).join(' \\\\ ')}\\end{cases}`;
+          return `\\left${OM_DELIM[bb] ?? bb}${es.map(omKids).join(sp || '|')}\\right${OM_DELIM[ee] ?? ee}`;
+        }
+        case 'acc': return `${OM_ACC[omPr(n, 'accPr', 'chr')] || '\\hat'}{${omV(n, 'e')}}`;
+        case 'bar': return `${omPr(n, 'barPr', 'pos') === 'bot' ? '\\underline' : '\\overline'}{${omV(n, 'e')}}`;
+        case 'limLow': return `${omV(n, 'e')}_{${omV(n, 'lim')}}`;
+        case 'limUpp': return `${omV(n, 'e')}^{${omV(n, 'lim')}}`;
+        case 'func': return `${omV(n, 'fName')} ${omV(n, 'e')}`;
+        case 'm': return `\\begin{matrix}${[...n.children].filter(c => c.localName === 'mr').map(r => [...r.children].filter(c => c.localName === 'e').map(omKids).join(' & ')).join(' \\\\ ')}\\end{matrix}`;
+        case 'eqArr': return `\\begin{aligned}${[...n.children].filter(c => c.localName === 'e').map(omKids).join(' \\\\ ')}\\end{aligned}`;
+        default: return omKids(n);
+      }
+    }
+    function handleWordFile(file) {
+      if (/\.doc$/i.test(file.name)) { toast('File .doc (Word cũ) chưa đọc được trong trình duyệt. Hãy mở bằng Word → Lưu thành .docx (hoặc PDF) rồi nạp lại.', 'warn'); return; }
+      convertDocxToTex(file);
+    }
+    async function convertDocxToTex(file) {
+      log(`Đang đọc ${file.name} → LaTeX (không dùng API)…`);
+      try {
+        const zip = await JSZip.loadAsync(await file.arrayBuffer());
+        const docF = zip.file('word/document.xml'); if (!docF) throw new Error('Không phải file .docx hợp lệ.');
+        const relsF = zip.file('word/_rels/document.xml.rels'), rels = {};
+        if (relsF) [...(await relsF.async('string')).matchAll(/<Relationship\b[^>]*>/g)].forEach(m => { const i = /Id="([^"]+)"/.exec(m[0]), t = /Target="([^"]+)"/.exec(m[0]); if (i && t) rels[i[1]] = t[1]; });
+        const xml = new DOMParser().parseFromString(await docF.async('string'), 'application/xml');
+        const body = xml.getElementsByTagName('w:body')[0]; if (!body) throw new Error('Không đọc được nội dung.');
+        const images = [], seen = {}; let mt = 0, skipImg = 0;
+        const addImg = async (rid) => {
+          const tg = rels[rid]; if (!tg) return '';
+          const path = 'word/' + tg.replace(/^\.?\//, '').replace(/^word\//, ''), f = zip.file(path);
+          if (!f || !/\.(png|jpe?g|pdf)$/i.test(path)) { skipImg++; return ''; }
+          const name = 'images/' + path.split('/').pop();
+          if (!seen[name]) { seen[name] = 1; images.push({ name, data: await f.async('base64'), b64: true }); }
+          return `\\par\\begin{center}\\includegraphics[width=0.6\\textwidth]{${name}}\\end{center}\\par `;
+        };
+        const flag = (r, tag) => { const p = omC(r, 'rPr'), c = p && omC(p, tag); return !!c && !['0', 'false', 'none'].includes(c.getAttribute('w:val')); };
+        const runTex = async (r) => {
+          let s = '';
+          for (const c of r.children) {
+            const l = c.localName;
+            if (l === 't') s += texEsc(c.textContent);
+            else if (l === 'tab') s += '~~';
+            else if (l === 'br') s += ' \\\\ ';
+            else if (l === 'drawing') { for (const b of c.getElementsByTagName('a:blip')) s += await addImg(b.getAttribute('r:embed')); }
+            else if ((l === 'object' || l === 'pict') && /Equation|DSMT/i.test(c.innerHTML || new XMLSerializer().serializeToString(c))) { mt++; s += `\\textbf{[công thức MathType ${mt}]}`; }
+          }
+          if (!s) return '';
+          const va = omC(r, 'rPr') && [...omC(r, 'rPr').children].find(x => x.localName === 'vertAlign');
+          if (va) s = va.getAttribute('w:val') === 'superscript' ? `\\textsuperscript{${s}}` : va.getAttribute('w:val') === 'subscript' ? `\\textsubscript{${s}}` : s;
+          if (flag(r, 'b')) s = `\\textbf{${s}}`; if (flag(r, 'i')) s = `\\textit{${s}}`;
+          return s;
+        };
+        const paraTex = async (p) => {
+          let out = '', onlyMath = true, hasMath = false;
+          const walk = async (n) => {
+            for (const c of n.children) {
+              const l = c.localName;
+              if (l === 'r') { const t = await runTex(c); if (t) { out += t; onlyMath = false; } }
+              else if (l === 'oMath') { out += `$${om(c).trim()}$`; hasMath = true; }
+              else if (l === 'oMathPara') { out += `\\[${om(c).trim()}\\]`; hasMath = true; }
+              else if (['hyperlink', 'ins', 'smartTag', 'sdt', 'sdtContent', 'fldSimple'].includes(l)) await walk(c);
+            }
+          };
+          await walk(p); out = out.trim(); if (!out) return '';
+          const st = omC(p, 'pPr') && omC(omC(p, 'pPr'), 'pStyle'), h = st && /Heading\s*(\d)/i.exec(st.getAttribute('w:val') || '');
+          return h ? `\\${['section', 'subsection', 'subsubsection'][Math.min(2, +h[1] - 1)]}*{${out}}` : out;
+        };
+        const tblTex = async (t) => {
+          const rows = [];
+          for (const tr of t.children) if (tr.localName === 'tr') {
+            const cells = [];
+            for (const tc of tr.children) if (tc.localName === 'tc') { const ps = []; for (const p of tc.children) if (p.localName === 'p') { const x = await paraTex(p); if (x) ps.push(x); } cells.push(ps.join(' ')); }
+            rows.push(cells);
+          }
+          if (!rows.length) return '';
+          const n = Math.max(...rows.map(r => r.length));
+          return `\\begin{center}\n\\begin{tabular}{|${'c|'.repeat(n)}}\n\\hline\n` + rows.map(r => { while (r.length < n) r.push(''); return r.join(' & ') + ' \\\\ \\hline'; }).join('\n') + '\n\\end{tabular}\n\\end{center}';
+        };
+        let tex = '';
+        for (const c of body.children) { const x = c.localName === 'p' ? await paraTex(c) : c.localName === 'tbl' ? await tblTex(c) : ''; if (x) tex += x + '\n\n'; }
+        await downloadTexBundle(texDocument(tex), images, file.name.replace(/\.docx$/i, '') + '_LaTeX');
+        if (mt) log(`⚠️ Có ${mt} công thức MathType (đối tượng nhúng) chưa đọc trực tiếp được, đã đánh dấu "[công thức MathType k]". Với các công thức này: Lưu .docx thành PDF rồi nạp PDF vào trang để nhận dạng.`, 'warn');
+        if (skipImg) log(`⚠️ Bỏ qua ${skipImg} hình định dạng không dùng được trong LaTeX (WMF/EMF).`, 'warn');
+      } catch (e) { log(`❌ Lỗi đọc .docx: ${e.message}`, 'error'); toast('Không đọc được file .docx này.', 'error'); }
+    }
+
     // --- 6. CROP HÌNH & XUẤT DOCX THẬT (Word Equation / OMML) ---
     function cropCanvasToImage(sourceCanvas, ymin, xmin, ymax, xmax) {
       try {
+        const pad = 12;
+        ymin = Math.max(0, ymin - pad); xmin = Math.max(0, xmin - pad); ymax = Math.min(1000, ymax + pad); xmax = Math.min(1000, xmax + pad);
         const sx = Math.max(0, xmin * sourceCanvas.width / 1000);
         const sy = Math.max(0, ymin * sourceCanvas.height / 1000);
         const cw = Math.max(1, Math.round((xmax - xmin) * sourceCanvas.width / 1000));
@@ -1167,12 +2863,13 @@ async function buildDocxBlob(pagesData,fmt,getImage,JSZipLib){
           log(`-> Đang crop hình vẽ [${ymin}, ${xmin}, ${ymax}, ${xmax}] ở Trang ${page.pageNum}...`);
           return cropCanvasToImage(page.canvas, ymin, xmin, ymax, xmax);
         };
-        const blob = await buildDocxBlob(pagesData, mathFormat, getImage, JSZip);
-        const fileName = `DeThi_OCR_${mathFormat.toUpperCase()}${isPdfFile ? `_tr${pagesData[0].pageNum}-${pagesData[pagesData.length - 1].pageNum}` : ''}.docx`;
+        const blob = await buildDocxBlob(pagesData, mathFormat, getImage, JSZip, { pageBreaks: !$('optContinuous').checked });
+        const fileName = `DeThi_OCR_${mathFormat.toUpperCase()}${isPdfFile ? `_tr${pagesData[0].pageNum}-${pagesData[pagesData.length - 1].pageNum}` : (pagesData.length < imageQueue.length ? `_anh${pagesData[0].pageNum}-${pagesData[pagesData.length - 1].pageNum}` : '')}.docx`;
         saveAs(blob, fileName);
         log(`🎉 XUẤT FILE HOÀN TẤT! Đã tải về: ${fileName}`);
         if (mathFormat === 'mathtype') {
-          log('ℹ️ Mở file trong Word → thẻ MathType → "Convert Equations" để đổi toàn bộ Equation sang đối tượng MathType.');
+          log(`🧮 Đã tạo ${MT_STATE.n} công thức MathType thật (nhấp đúp trong Word để sửa bằng MathType).`);
+          if (MT_STATE.failed) log(`⚠️ ${MT_STATE.failed} công thức không chuyển được sang MathType nên được giữ ở dạng Word Equation (OMML).`, 'warn');
         }
       } catch (err) {
         log(`❌ Lỗi đóng gói DOCX: ${err.message}`);
